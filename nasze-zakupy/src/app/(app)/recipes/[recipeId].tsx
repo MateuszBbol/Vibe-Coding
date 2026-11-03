@@ -1,0 +1,275 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { Colors, Spacing } from '@/constants/theme';
+import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
+import { fetchOrCreateActiveList } from '@/features/shopping/data';
+import { deleteRecipe, fetchRecipe, addRecipeToActiveList } from '@/features/recipes/data';
+import { isValidRecipeId, recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
+import { useRecipeHousehold } from '@/features/recipes/household';
+import {
+  RecipeButton,
+  RecipeCard,
+  RecipeError,
+  RecipeFrame,
+  RecipeMessage,
+} from '@/features/recipes/RecipeUI';
+import { formatShoppingItemQuantity } from '@/features/shopping/format';
+import { getShoppingCategory } from '@/features/shopping/categories';
+import { strings } from '@/localization';
+import { supabase } from '@/lib/supabase/client';
+
+export default function RecipeDetailsRoute() {
+  const params = useLocalSearchParams<{
+    recipeId?: string | string[];
+    householdId?: string | string[];
+  }>();
+  const recipeId = Array.isArray(params.recipeId) ? params.recipeId[0] : params.recipeId;
+  const validRecipeId = isValidRecipeId(recipeId);
+  const { household, userId, query: householdQuery } = useRecipeHousehold();
+  const householdId = household?.id;
+  const queryClient = useQueryClient();
+  const dark = useColorScheme() === 'dark';
+  const colors = Colors[dark ? 'dark' : 'light'];
+  const text = strings.pl.recipes;
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const recipeQuery = useQuery({
+    queryKey: recipeQueryKeys.detail(householdId ?? '', recipeId ?? ''),
+    queryFn: () => fetchRecipe(householdId ?? '', recipeId ?? ''),
+    enabled: Boolean(householdId && validRecipeId),
+  });
+  const listQuery = useQuery({
+    queryKey: ['active-shopping-list', userId, householdId],
+    queryFn: () => fetchOrCreateActiveList(householdId ?? ''),
+    enabled: Boolean(userId && householdId && validRecipeId),
+  });
+  const returnToRecipes = () => {
+    const requestedHouseholdId = Array.isArray(params.householdId)
+      ? params.householdId[0]
+      : params.householdId;
+    const targetHouseholdId = householdId ?? requestedHouseholdId;
+    router.dismissTo(targetHouseholdId ? recipeRoutes.list(targetHouseholdId) : '/recipes');
+  };
+
+  useEffect(() => {
+    if (recipeQuery.isError) {
+      logFeatureError('[recipes] load recipe details failed', recipeQuery.error, {
+        householdId,
+        recipeId,
+      });
+    }
+  }, [householdId, recipeId, recipeQuery.error, recipeQuery.isError]);
+  useEffect(() => {
+    if (listQuery.isError) {
+      logFeatureError('[recipes] load active shopping list failed', listQuery.error, {
+        householdId,
+        userId,
+      });
+    }
+  }, [householdId, listQuery.error, listQuery.isError, userId]);
+  useEffect(() => {
+    if (!supabase || !householdId || !validRecipeId) {
+      return;
+    }
+    const client = supabase;
+    const channel = client
+      .channel(`recipe-detail:${householdId}:${recipeId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => {
+        void queryClient.invalidateQueries({
+          queryKey: recipeQueryKeys.detail(householdId, recipeId),
+        });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_items' }, () => {
+        void queryClient.invalidateQueries({
+          queryKey: recipeQueryKeys.detail(householdId, recipeId),
+        });
+        void queryClient.invalidateQueries({ queryKey: recipeQueryKeys.list(householdId) });
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          logFeatureError('[realtime] recipe detail subscription failed', status, {
+            householdId,
+            recipeId,
+          });
+        }
+      });
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [householdId, recipeId, queryClient, validRecipeId]);
+
+  const isLoading =
+    householdQuery.isPending ||
+    Boolean(household && validRecipeId && (recipeQuery.isPending || listQuery.isPending));
+
+  const addMutation = useMutation({
+    mutationFn: () => addRecipeToActiveList(recipeId ?? ''),
+    onSuccess: async (result) => {
+      setActionError(null);
+      setSuccessMessage(text.addAllSuccess(result.itemsAdded));
+      await queryClient.invalidateQueries({ queryKey: ['shopping-items', result.listId] });
+    },
+    onError: (error: unknown) => {
+      logFeatureError('[recipes] add ingredients to shopping list failed', error, {
+        householdId,
+        recipeId,
+      });
+      setActionError(getFeatureErrorMessage(error));
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteRecipe(householdId ?? '', recipeId ?? ''),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: recipeQueryKeys.list(householdId ?? '') });
+      returnToRecipes();
+    },
+    onError: (error: unknown) => {
+      logFeatureError('[recipes] delete recipe failed', error, { householdId, recipeId });
+      setActionError(getFeatureErrorMessage(error));
+    },
+  });
+
+  const confirmAddAll = () => {
+    const recipe = recipeQuery.data;
+    const list = listQuery.data;
+    if (!recipe || !list) {
+      return;
+    }
+    Alert.alert(
+      text.addAllConfirmTitle,
+      text.addAllConfirmMessage(recipe.items.length, list.name),
+      [
+        { text: strings.pl.auth.cancel, style: 'cancel' },
+        { text: text.addAll, onPress: () => addMutation.mutate() },
+      ],
+    );
+  };
+  const confirmDelete = () =>
+    Alert.alert(text.deleteConfirmTitle, text.deleteConfirmMessage, [
+      { text: strings.pl.auth.cancel, style: 'cancel' },
+      {
+        text: text.delete,
+        style: 'destructive',
+        onPress: () => deleteMutation.mutate(),
+      },
+    ]);
+
+  return (
+    <RecipeFrame
+      title={recipeQuery.data?.name ?? text.title}
+      testID={`recipe-details-screen-${recipeId ?? 'unknown'}`}
+      onBack={returnToRecipes}
+    >
+      {isLoading ? (
+        <ActivityIndicator testID="recipe-details-loading" color={colors.accent} size="large" />
+      ) : !validRecipeId ? (
+        <RecipeMessage testID="recipe-details-error-message">{text.notFound}</RecipeMessage>
+      ) : householdQuery.isError || recipeQuery.isError || listQuery.isError ? (
+        <RecipeMessage testID="recipe-details-error-message">{text.loadFailed}</RecipeMessage>
+      ) : !household ? (
+        <RecipeMessage testID="recipe-details-error-message">
+          {text.householdUnavailable}
+        </RecipeMessage>
+      ) : !recipeQuery.data ? (
+        <RecipeMessage testID="recipe-details-error-message">{text.notFound}</RecipeMessage>
+      ) : (
+        <>
+          {recipeQuery.data.description ? (
+            <Text style={[styles.description, { color: colors.secondaryText }]}>
+              {recipeQuery.data.description}
+            </Text>
+          ) : null}
+          <RecipeCard testID={`recipe-ingredients-${recipeId}`}>
+            {recipeQuery.data.items.map((item) => (
+              <View
+                key={item.id}
+                testID={`recipe-ingredient-${item.id}`}
+                style={[styles.ingredient, { borderBottomColor: colors.border }]}
+              >
+                <View style={styles.ingredientName}>
+                  <Text
+                    testID={`recipe-ingredient-name-${item.id}`}
+                    style={[styles.name, { color: colors.text }]}
+                  >
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.category, { color: colors.secondaryText }]}>
+                    {getShoppingCategory(item.category).emoji}{' '}
+                    {getShoppingCategory(item.category).label}
+                  </Text>
+                </View>
+                <Text
+                  testID={`recipe-ingredient-quantity-${item.id}`}
+                  style={[styles.quantity, { color: colors.secondaryText }]}
+                >
+                  {formatShoppingItemQuantity(item.quantity, item.unit)}
+                </Text>
+              </View>
+            ))}
+            {recipeQuery.data.items.length === 0 ? (
+              <RecipeMessage testID="recipe-no-ingredients-state">
+                {text.noIngredients}
+              </RecipeMessage>
+            ) : null}
+          </RecipeCard>
+          {actionError ? (
+            <RecipeError testID="recipe-action-error-message">{actionError}</RecipeError>
+          ) : null}
+          {successMessage ? (
+            <Text
+              accessibilityRole="alert"
+              testID="recipe-action-success-message"
+              style={[styles.success, { color: colors.accent }]}
+            >
+              {successMessage}
+            </Text>
+          ) : null}
+          <RecipeButton
+            label={addMutation.isPending ? text.saving : text.addAll}
+            testID="recipe-add-to-shopping-list-button"
+            disabled={addMutation.isPending || recipeQuery.data.items.length === 0}
+            onPress={confirmAddAll}
+          />
+          <RecipeButton
+            label={text.edit}
+            testID={`recipe-edit-button-${recipeId}`}
+            secondary
+            onPress={() => {
+              const recipe = recipeQuery.data;
+              if (recipe) {
+                router.push(recipeRoutes.edit(household.id, recipe.id));
+              }
+            }}
+          />
+          <RecipeButton
+            label={deleteMutation.isPending ? text.saving : text.delete}
+            testID={`recipe-delete-button-${recipeId}`}
+            danger
+            disabled={deleteMutation.isPending}
+            onPress={confirmDelete}
+          />
+        </>
+      )}
+    </RecipeFrame>
+  );
+}
+
+const styles = StyleSheet.create({
+  description: { fontSize: 15, lineHeight: 22 },
+  ingredient: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.two,
+  },
+  ingredientName: { flex: 1, gap: Spacing.half },
+  name: { fontSize: 16, fontWeight: '600' },
+  category: { fontSize: 12 },
+  quantity: { fontSize: 15, marginLeft: Spacing.two },
+  success: { fontSize: 15, fontWeight: '600', textAlign: 'center' },
+});

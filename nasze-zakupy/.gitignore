@@ -1,0 +1,68 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# local editor and agent state
+.claude/
+.idea/
+.vscode/
+*.code-workspace
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+supabase/.temp/
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.keystore
+*.cer
+*.crt
+*.pfx
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.provisionprofile
+*.ipa
+*.xcarchive/
+credentials.json
+*.token
+*.secret
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# temporary files
+*.tmp
+*.temp
+*~
+
+# local env files
+.env
+.env.*
+!.env.example
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
