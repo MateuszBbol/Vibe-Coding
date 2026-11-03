@@ -63,4 +63,25 @@ describe('recipes migration security and atomic operation contract', () => {
     expect(householdLock).toBeGreaterThan(initialRecipeRead);
     expect(lockedRecipeRead).toBeGreaterThan(householdLock);
   });
+
+  it('copies every recipe ingredient and preserves its fields on that household active list', () => {
+    const addFunction = migration.slice(
+      migration.indexOf(
+        'create or replace function public.add_recipe_to_active_shopping_list',
+      ),
+      migration.indexOf('revoke all on function public.add_recipe_to_active_shopping_list'),
+    );
+    const compactFunction = addFunction.replace(/\s+/g, ' ').toLowerCase();
+
+    expect(compactFunction).toContain(
+      'from public.ensure_active_shopping_list(target_household_id) as active_list',
+    );
+    expect(compactFunction).toContain(
+      'insert into public.shopping_items ( list_id, name, quantity, unit, category, created_by )',
+    );
+    expect(compactFunction).toContain(
+      'select target_list_id, recipe_item.name, recipe_item.quantity, recipe_item.unit, recipe_item.category, current_user_id from public.recipe_items as recipe_item where recipe_item.recipe_id = target_recipe_id',
+    );
+    expect(compactFunction).toContain('get diagnostics inserted_item_count = row_count');
+  });
 });

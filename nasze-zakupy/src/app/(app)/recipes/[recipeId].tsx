@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
+import { confirmRecipeAction } from '@/features/recipes/confirmRecipeAction';
 import { fetchOrCreateActiveList } from '@/features/shopping/data';
 import { deleteRecipe, fetchRecipe, addRecipeToActiveList } from '@/features/recipes/data';
 import { isValidRecipeId, recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
@@ -138,14 +139,13 @@ export default function RecipeDetailsRoute() {
     if (!recipe || !list) {
       return;
     }
-    Alert.alert(
-      text.addAllConfirmTitle,
-      text.addAllConfirmMessage(recipe.items.length, list.name),
-      [
-        { text: strings.pl.auth.cancel, style: 'cancel' },
-        { text: text.addAll, onPress: () => addMutation.mutate() },
-      ],
-    );
+    confirmRecipeAction({
+      title: text.addAllConfirmTitle,
+      message: text.addAllConfirmMessage(recipe.items.length, list.name),
+      cancelLabel: strings.pl.auth.cancel,
+      confirmLabel: text.addAll,
+      onConfirm: () => addMutation.mutate(),
+    });
   };
   const confirmDelete = () =>
     Alert.alert(text.deleteConfirmTitle, text.deleteConfirmMessage, [

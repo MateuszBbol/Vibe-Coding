@@ -65,4 +65,11 @@ describe('recipe data RPCs', () => {
       target_recipe_id: 'recipe-1',
     });
   });
+
+  it('propagates errors from adding recipe ingredients', async () => {
+    const rpcError = new Error('RPC failed');
+    mockRpc.mockResolvedValueOnce({ data: null, error: rpcError });
+
+    await expect(addRecipeToActiveList('recipe-1')).rejects.toBe(rpcError);
+  });
 });
