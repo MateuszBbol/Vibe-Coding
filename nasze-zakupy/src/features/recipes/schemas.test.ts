@@ -36,15 +36,43 @@ describe('recipe schema', () => {
     expect(
       recipeSchema.parse({
         ...validRecipe,
-        steps: [{ text: '  Przygotuj warzywa.  ' }, { text: '   ' }, { text: 'Gotuj.' }],
+        steps: [
+          { text: '  Przygotuj warzywa.  ', duration_minutes: '5' },
+          { text: '   ', duration_minutes: '30' },
+          { text: 'Gotuj.' },
+        ],
       }).steps,
     ).toEqual([
-      { text: 'Przygotuj warzywa.', sort_order: 0 },
-      { text: 'Gotuj.', sort_order: 1 },
+      { text: 'Przygotuj warzywa.', duration_minutes: 5, sort_order: 0 },
+      { text: 'Gotuj.', duration_minutes: null, sort_order: 1 },
     ]);
   });
 
   it('accepts a recipe without preparation steps', () => {
     expect(recipeSchema.parse(validRecipe).steps).toEqual([]);
+  });
+
+  it('accepts blank and zero step durations and rejects negative, fractional, and invalid values', () => {
+    expect(
+      recipeSchema.parse({
+        ...validRecipe,
+        steps: [
+          { text: 'Bez czasu', duration_minutes: '' },
+          { text: 'Bez czasu podanego', duration_minutes: '0' },
+        ],
+      }).steps,
+    ).toEqual([
+      { text: 'Bez czasu', duration_minutes: null, sort_order: 0 },
+      { text: 'Bez czasu podanego', duration_minutes: 0, sort_order: 1 },
+    ]);
+
+    for (const duration of ['-1', '1.5', 'abc', '2147483648']) {
+      expect(
+        recipeSchema.safeParse({
+          ...validRecipe,
+          steps: [{ text: 'Krok', duration_minutes: duration }],
+        }).success,
+      ).toBe(false);
+    }
   });
 });

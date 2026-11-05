@@ -1,6 +1,13 @@
-import { addShoppingItem, deletePurchasedShoppingItems } from './data';
+import {
+  addShoppingItem,
+  createShoppingList,
+  deletePurchasedShoppingItems,
+  deleteShoppingList,
+  fetchActiveShoppingList,
+} from './data';
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 const mockQuery = {
   delete: jest.fn(),
   eq: jest.fn(),
@@ -12,11 +19,13 @@ const mockQuery = {
 jest.mock('@/lib/supabase/client', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
-describe('deletePurchasedShoppingItems', () => {
+describe('shopping data operations', () => {
   beforeEach(() => {
+    mockRpc.mockReset();
     mockFrom.mockReset().mockReturnValue(mockQuery);
     mockQuery.delete.mockReset().mockReturnValue(mockQuery);
     mockQuery.eq.mockReset().mockReturnValue(mockQuery);
@@ -28,6 +37,41 @@ describe('deletePurchasedShoppingItems', () => {
         reject: ((reason: unknown) => unknown) | undefined,
       ) => Promise.resolve({ error: null }).then(resolve, reject),
     );
+  });
+
+  it('returns an empty state when the household has no active shopping list', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null });
+
+    await expect(fetchActiveShoppingList('household-1')).resolves.toBeNull();
+    expect(mockRpc).toHaveBeenCalledWith('ensure_active_shopping_list', {
+      target_household_id: 'household-1',
+    });
+  });
+
+  it('creates a shopping list explicitly and propagates RPC errors', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ list_id: 'list-1', list_name: 'Zakupy' }],
+      error: null,
+    });
+    await expect(createShoppingList('household-1')).resolves.toEqual({
+      id: 'list-1',
+      name: 'Zakupy',
+    });
+
+    const rpcError = new Error('RPC failed');
+    mockRpc.mockResolvedValueOnce({ data: null, error: rpcError });
+    await expect(createShoppingList('household-1')).rejects.toBe(rpcError);
+  });
+
+  it('deletes only through the dedicated list RPC and rejects false results', async () => {
+    mockRpc.mockResolvedValueOnce({ data: true, error: null });
+    await expect(deleteShoppingList('list-1')).resolves.toBeUndefined();
+    expect(mockRpc).toHaveBeenCalledWith('delete_shopping_list', {
+      target_list_id: 'list-1',
+    });
+
+    mockRpc.mockResolvedValueOnce({ data: false, error: null });
+    await expect(deleteShoppingList('list-1')).rejects.toThrow('Nie udało się usunąć listy');
   });
 
   it('deletes only purchased, active products from the requested list', async () => {

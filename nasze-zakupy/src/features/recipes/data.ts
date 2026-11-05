@@ -27,6 +27,7 @@ export type RecipeStep = {
   recipe_id: string;
   text: string;
   sort_order: number;
+  duration_minutes: number | null;
 };
 export type RecipeDetails = Omit<Recipe, 'items_count'> & {
   items: RecipeItem[];
@@ -35,7 +36,7 @@ export type RecipeDetails = Omit<Recipe, 'items_count'> & {
 export type RecipeSaveValues = {
   name: string;
   description: string;
-  steps: { text: string; sort_order: number }[];
+  steps: { text: string; sort_order: number; duration_minutes: number | null }[];
   items: Omit<RecipeItem, 'id' | 'recipe_id'>[];
 };
 
@@ -113,7 +114,7 @@ export async function fetchRecipe(
 
   const { data: steps, error: stepsError } = await client
     .from('recipe_steps')
-    .select('id, recipe_id, text, sort_order')
+    .select('id, recipe_id, text, sort_order, duration_minutes')
     .eq('recipe_id', recipeId)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });

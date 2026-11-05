@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Colors, Spacing } from '@/constants/theme';
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
 import { confirmRecipeAction } from '@/features/recipes/confirmRecipeAction';
-import { fetchOrCreateActiveList } from '@/features/shopping/data';
+import { fetchActiveShoppingList } from '@/features/shopping/data';
 import { deleteRecipe, fetchRecipe, addRecipeToActiveList } from '@/features/recipes/data';
 import { isValidRecipeId, recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
 import { useRecipeHousehold } from '@/features/recipes/household';
@@ -45,7 +45,7 @@ export default function RecipeDetailsRoute() {
   });
   const listQuery = useQuery({
     queryKey: ['active-shopping-list', userId, householdId],
-    queryFn: () => fetchOrCreateActiveList(householdId ?? ''),
+    queryFn: () => fetchActiveShoppingList(householdId ?? ''),
     enabled: Boolean(userId && householdId && validRecipeId),
   });
   const returnToRecipes = () => {
@@ -95,6 +95,11 @@ export default function RecipeDetailsRoute() {
           queryKey: recipeQueryKeys.detail(householdId, recipeId),
         });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_lists' }, () => {
+        void queryClient.invalidateQueries({
+          queryKey: ['active-shopping-list', userId, householdId],
+        });
+      })
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           logFeatureError('[realtime] recipe detail subscription failed', status, {
@@ -106,7 +111,7 @@ export default function RecipeDetailsRoute() {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [householdId, recipeId, queryClient, validRecipeId]);
+  }, [householdId, recipeId, queryClient, userId, validRecipeId]);
 
   const isLoading =
     householdQuery.isPending ||
@@ -145,7 +150,12 @@ export default function RecipeDetailsRoute() {
   const confirmAddAll = () => {
     const recipe = recipeQuery.data;
     const list = listQuery.data;
-    if (!recipe || !list) {
+    if (!recipe) {
+      return;
+    }
+    if (!list) {
+      setActionError(text.shoppingListRequired);
+      setSuccessMessage(null);
       return;
     }
     confirmRecipeAction({
@@ -207,13 +217,23 @@ export default function RecipeDetailsRoute() {
                 {text.preparationTitle}
               </Text>
               {recipeQuery.data.steps.map((step, index) => (
-                <Text
+                <View
                   key={step.id}
                   testID={`recipe-preparation-step-${index}`}
-                  style={[styles.preparationStep, { color: colors.text }]}
+                  style={styles.preparationStep}
                 >
-                  {index + 1}. {step.text}
-                </Text>
+                  <Text style={{ color: colors.text }}>
+                    {index + 1}. {step.text}
+                  </Text>
+                  {step.duration_minutes !== null ? (
+                    <Text
+                      testID={`recipe-preparation-step-${index}-duration`}
+                      style={{ color: colors.secondaryText }}
+                    >
+                      {step.duration_minutes} {text.minutes}
+                    </Text>
+                  ) : null}
+                </View>
               ))}
             </RecipeCard>
           ) : null}
@@ -252,6 +272,11 @@ export default function RecipeDetailsRoute() {
           </RecipeCard>
           {actionError ? (
             <RecipeError testID="recipe-action-error-message">{actionError}</RecipeError>
+          ) : null}
+          {!listQuery.data ? (
+            <RecipeMessage testID="recipe-no-active-list-message">
+              {text.shoppingListRequired}
+            </RecipeMessage>
           ) : null}
           {successMessage ? (
             <Text
@@ -295,7 +320,7 @@ export default function RecipeDetailsRoute() {
 const styles = StyleSheet.create({
   description: { fontSize: 15, lineHeight: 22 },
   sectionTitle: { fontSize: 17, fontWeight: '700' },
-  preparationStep: { fontSize: 15, lineHeight: 22 },
+  preparationStep: { gap: Spacing.half },
   ingredient: {
     minHeight: 52,
     flexDirection: 'row',

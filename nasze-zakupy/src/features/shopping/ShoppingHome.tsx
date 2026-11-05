@@ -17,11 +17,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
+import { confirmRecipeAction } from '@/features/recipes/confirmRecipeAction';
 import { recipeRoutes } from '@/features/recipes/routes';
 import type { Household } from '@/features/households/data';
 import { householdRoutes } from '@/features/households/routes';
 import {
   addShoppingItem,
+  createShoppingList,
+  deleteShoppingList,
   deleteShoppingItem,
   deletePurchasedShoppingItems,
   fetchShoppingItems,
@@ -50,7 +53,7 @@ import { supabase } from '@/lib/supabase/client';
 
 type ShoppingHomeProps = {
   household: Household;
-  list: ShoppingList;
+  list: ShoppingList | null;
   userId: string;
   displayName: string;
   onSignOut: () => void;
@@ -87,7 +90,12 @@ export function ShoppingHome({
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const colors = Colors[colorScheme];
   const text = strings.pl.shopping;
-  const queryKey = useMemo(() => ['shopping-items', list.id] as const, [list.id]);
+  const listId = list?.id;
+  const queryKey = useMemo(() => ['shopping-items', listId ?? ''] as const, [listId]);
+  const activeListQueryKey = useMemo(
+    () => ['active-shopping-list', userId, household.id] as const,
+    [household.id, userId],
+  );
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'error'>(
     supabase ? 'connecting' : 'error',
   );
@@ -110,7 +118,13 @@ export function ShoppingHome({
   });
   const itemsQuery = useQuery({
     queryKey,
-    queryFn: () => fetchShoppingItems(list.id),
+    queryFn: () => {
+      if (!listId) {
+        throw new Error('Najpierw utwórz listę zakupową.');
+      }
+      return fetchShoppingItems(listId);
+    },
+    enabled: Boolean(listId),
   });
   const cachedItemIds = useMemo(
     () =>
@@ -123,8 +137,19 @@ export function ShoppingHome({
 
   const refreshItems = () => queryClient.invalidateQueries({ queryKey });
   const addMutation = useMutation({
-    mutationFn: (values: ShoppingItemValues) =>
-      addShoppingItem(list.id, userId, values.name, values.quantity, values.unit, values.category),
+    mutationFn: (values: ShoppingItemValues) => {
+      if (!listId) {
+        throw new Error('Najpierw utwórz listę zakupową.');
+      }
+      return addShoppingItem(
+        listId,
+        userId,
+        values.name,
+        values.quantity,
+        values.unit,
+        values.category,
+      );
+    },
     onSuccess: async () => {
       reset();
       categoryManuallyOverridden.current = false;
@@ -139,8 +164,12 @@ export function ShoppingHome({
     },
   });
   const toggleMutation = useMutation({
-    mutationFn: ({ itemId, purchased }: { itemId: string; purchased: boolean }) =>
-      setShoppingItemPurchased(list.id, itemId, userId, purchased),
+    mutationFn: ({ itemId, purchased }: { itemId: string; purchased: boolean }) => {
+      if (!listId) {
+        throw new Error('Najpierw utwórz listę zakupową.');
+      }
+      return setShoppingItemPurchased(listId, itemId, userId, purchased);
+    },
     onSuccess: async () => {
       setActionError(null);
       await refreshItems();
@@ -151,7 +180,12 @@ export function ShoppingHome({
     },
   });
   const deletePurchasedMutation = useMutation({
-    mutationFn: () => deletePurchasedShoppingItems(list.id),
+    mutationFn: () => {
+      if (!listId) {
+        throw new Error('Najpierw utwórz listę zakupową.');
+      }
+      return deletePurchasedShoppingItems(listId);
+    },
     onSuccess: async () => {
       setActionError(null);
       await refreshItems();
@@ -162,7 +196,12 @@ export function ShoppingHome({
     },
   });
   const deleteMutation = useMutation({
-    mutationFn: (itemId: string) => deleteShoppingItem(list.id, itemId),
+    mutationFn: (itemId: string) => {
+      if (!listId) {
+        throw new Error('Najpierw utwórz listę zakupową.');
+      }
+      return deleteShoppingItem(listId, itemId);
+    },
     onSuccess: async () => {
       setActionError(null);
       await refreshItems();
@@ -171,31 +210,67 @@ export function ShoppingHome({
       logFeatureError('[shopping item] delete failed', error, {
         userId,
         householdId: household.id,
-        listId: list.id,
+        listId,
+      });
+      setActionError(getFeatureErrorMessage(error));
+    },
+  });
+  const createListMutation = useMutation({
+    mutationFn: () => createShoppingList(household.id),
+    onSuccess: async (createdList) => {
+      queryClient.setQueryData(activeListQueryKey, createdList);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: activeListQueryKey });
+    },
+    onError: (error: unknown) => {
+      logFeatureError('[shopping list] create failed', error, {
+        userId,
+        householdId: household.id,
+      });
+      setActionError(getFeatureErrorMessage(error));
+    },
+  });
+  const deleteListMutation = useMutation({
+    mutationFn: () => {
+      if (!listId) {
+        throw new Error('Nie znaleziono aktywnej listy zakupowej.');
+      }
+      return deleteShoppingList(listId);
+    },
+    onSuccess: async () => {
+      queryClient.setQueryData<ShoppingList | null>(activeListQueryKey, null);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: activeListQueryKey });
+    },
+    onError: (error: unknown) => {
+      logFeatureError('[shopping list] delete failed', error, {
+        userId,
+        householdId: household.id,
+        listId,
       });
       setActionError(getFeatureErrorMessage(error));
     },
   });
 
   useEffect(() => {
-    if (itemsQuery.isError) {
+    if (itemsQuery.isError && listId) {
       logFeatureError('[shopping items] load failed', itemsQuery.error, {
         userId,
         householdId: household.id,
-        listId: list.id,
+        listId,
       });
     }
-  }, [household.id, itemsQuery.error, itemsQuery.isError, list.id, userId]);
+  }, [household.id, itemsQuery.error, itemsQuery.isError, listId, userId]);
 
   useEffect(() => {
     const client = supabase;
-    if (!client) {
+    if (!client || !listId) {
       return;
     }
 
     let active = true;
     channelSequence.current += 1;
-    const channelId = `shopping-items:${list.id}:${realtimeAttempt}:${channelSequence.current}`;
+    const channelId = `shopping-items:${listId}:${realtimeAttempt}:${channelSequence.current}`;
     let channel = client
       .channel(channelId)
       .on(
@@ -204,7 +279,7 @@ export function ShoppingHome({
           event: 'INSERT',
           schema: 'public',
           table: 'shopping_items',
-          filter: `list_id=eq.${list.id}`,
+          filter: `list_id=eq.${listId}`,
         },
         (payload) => {
           logRealtimeEvent(payload);
@@ -217,7 +292,7 @@ export function ShoppingHome({
           event: 'UPDATE',
           schema: 'public',
           table: 'shopping_items',
-          filter: `list_id=eq.${list.id}`,
+          filter: `list_id=eq.${listId}`,
         },
         (payload) => {
           logRealtimeEvent(payload);
@@ -263,7 +338,7 @@ export function ShoppingHome({
               logFeatureError('[realtime] update shopping cache failed', error, {
                 userId,
                 householdId: household.id,
-                listId: list.id,
+                listId,
               });
               setActionError(getFeatureErrorMessage(error));
             }
@@ -284,14 +359,14 @@ export function ShoppingHome({
         logFeatureError('[realtime] shopping items subscription failed', status, {
           userId,
           householdId: household.id,
-          listId: list.id,
+          listId,
         });
       } else if (status === 'CLOSED') {
         setRealtimeStatus('error');
         logFeatureError('[realtime] shopping items subscription closed', status, {
           userId,
           householdId: household.id,
-          listId: list.id,
+          listId,
         });
       }
     });
@@ -300,7 +375,7 @@ export function ShoppingHome({
       active = false;
       void client.removeChannel(channel);
     };
-  }, [cachedItemIds, household.id, list.id, queryClient, queryKey, realtimeAttempt, userId]);
+  }, [cachedItemIds, household.id, listId, queryClient, queryKey, realtimeAttempt, userId]);
 
   useEffect(() => {
     if (itemsQuery.isError) {
@@ -383,6 +458,132 @@ export function ShoppingHome({
     </View>
   );
 
+  const navigation = (
+    <View style={styles.navigationButtons}>
+      <Pressable
+        accessibilityRole="button"
+        testID="navigation-recipes"
+        onPress={() => router.push(recipeRoutes.list(household.id))}
+        style={({ pressed }) => [
+          styles.navigationButton,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: pressed ? 0.75 : 1,
+          },
+        ]}
+      >
+        <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
+          📖 {strings.pl.recipes.open}
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        testID="navigation-households"
+        onPress={() => router.push(householdRoutes.root())}
+        style={({ pressed }) => [
+          styles.navigationButton,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: pressed ? 0.75 : 1,
+          },
+        ]}
+      >
+        <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
+          🏠 {strings.pl.household.managementTitle}
+        </Text>
+      </Pressable>
+    </View>
+  );
+  const confirmDeleteList = () => {
+    if (!list) {
+      return;
+    }
+    setActionError(null);
+    confirmRecipeAction({
+      title: text.deleteListConfirmTitle,
+      message: text.deleteListConfirmMessage,
+      cancelLabel: strings.pl.auth.cancel,
+      confirmLabel: text.deleteList,
+      onConfirm: () => deleteListMutation.mutate(),
+    });
+  };
+
+  if (!list) {
+    return (
+      <SafeAreaView
+        testID="shopping-screen"
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+      >
+        <ScrollView
+          testID="shopping-list"
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <ShoppingAppHeader
+            userName={displayName}
+            householdName={household.name}
+            title={text.title}
+            signOutLabel={text.signOut}
+            isSigningOut={isSigningOut}
+            onSignOut={onSignOut}
+          />
+          {navigation}
+          <View
+            testID="shopping-no-list-state"
+            style={[styles.noListCard, { backgroundColor: colors.card }]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{text.noListsTitle}</Text>
+            <Text style={[styles.message, { color: colors.secondaryText }]}>
+              {text.noListsDescription}
+            </Text>
+            {actionError ? (
+              <Text
+                accessibilityRole="alert"
+                testID="shopping-action-error-message"
+                style={styles.error}
+              >
+                {actionError}
+              </Text>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: createListMutation.isPending }}
+              testID="shopping-create-list-button"
+              disabled={createListMutation.isPending}
+              onPress={() => {
+                setActionError(null);
+                createListMutation.mutate();
+              }}
+              style={({ pressed }) => [
+                styles.navigationButton,
+                {
+                  backgroundColor: colors.accent,
+                  borderColor: colors.accent,
+                  opacity: pressed || createListMutation.isPending ? 0.65 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.createListButtonText, { color: colors.background }]}>
+                {createListMutation.isPending ? text.creatingList : text.createList}
+              </Text>
+            </Pressable>
+          </View>
+          {signOutError ? (
+            <Text
+              accessibilityRole="alert"
+              testID="profile-logout-error-message"
+              style={[styles.error, styles.signOutError]}
+            >
+              {signOutError}
+            </Text>
+          ) : null}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       testID="shopping-screen"
@@ -401,43 +602,23 @@ export function ShoppingHome({
           isSigningOut={isSigningOut}
           onSignOut={onSignOut}
         />
-        <View style={styles.navigationButtons}>
-          <Pressable
-            accessibilityRole="button"
-            testID="navigation-recipes"
-            onPress={() => router.push(recipeRoutes.list(household.id))}
-            style={({ pressed }) => [
-              styles.navigationButton,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                opacity: pressed ? 0.75 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
-              📖 {strings.pl.recipes.open}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            testID="navigation-households"
-            onPress={() => router.push(householdRoutes.root())}
-            style={({ pressed }) => [
-              styles.navigationButton,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                opacity: pressed ? 0.75 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
-              🏠 {strings.pl.household.managementTitle}
-            </Text>
-          </Pressable>
-        </View>
+        {navigation}
         <ScreenHeader title={text.listName} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: deleteListMutation.isPending }}
+          testID="shopping-delete-list-button"
+          disabled={deleteListMutation.isPending}
+          onPress={confirmDeleteList}
+          style={({ pressed }) => [
+            styles.deleteListButton,
+            { opacity: pressed || deleteListMutation.isPending ? 0.6 : 1 },
+          ]}
+        >
+          <Text style={[styles.deletePurchasedText, { color: '#B42318' }]}>
+            {deleteListMutation.isPending ? text.deletingList : text.deleteList}
+          </Text>
+        </Pressable>
         {realtimeStatus !== 'connected' ? (
           <View
             testID="shopping-realtime-status"
@@ -906,6 +1087,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  noListCard: {
+    gap: Spacing.two,
+    borderRadius: 18,
+    padding: Spacing.three,
+  },
+  createListButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  deleteListButton: {
+    alignSelf: 'flex-end',
+    minHeight: 40,
+    justifyContent: 'center',
+    marginTop: -Spacing.two,
+    marginBottom: Spacing.two,
   },
   syncStatus: {
     minHeight: 34,

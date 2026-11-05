@@ -14,6 +14,24 @@ const quantitySchema = z
   .transform((value) => (value === null ? null : Number(value)))
   .pipe(z.number().positive('Ilość musi być większa od zera.').nullable());
 
+const durationMinutesSchema = z
+  .string()
+  .trim()
+  .default('')
+  .transform((value) => (value === '' ? null : value))
+  .refine((value) => value === null || /^\d+$/.test(value), {
+    message: 'Podaj liczbę całkowitych minut nie mniejszą niż zero.',
+  })
+  .transform((value) => (value === null ? null : Number(value)))
+  .pipe(
+    z
+      .number()
+      .int('Czas musi być podany w całych minutach.')
+      .min(0, 'Czas nie może być ujemny.')
+      .max(2147483647, 'Podana liczba minut jest zbyt duża.')
+      .nullable(),
+  );
+
 export const recipeItemSchema = z.object({
   name: z.string().trim().min(1, 'Wpisz nazwę produktu.').max(120),
   quantity: quantitySchema,
@@ -27,7 +45,12 @@ export const recipeSchema = z.object({
   name: z.string().trim().min(1, 'Wpisz nazwę przepisu.').max(120),
   description: z.string().trim().max(2000, 'Opis może mieć maksymalnie 2000 znaków.'),
   steps: z
-    .array(z.object({ text: z.string().trim().max(500, 'Punkt może mieć maksymalnie 500 znaków.') }))
+    .array(
+      z.object({
+        text: z.string().trim().max(500, 'Punkt może mieć maksymalnie 500 znaków.'),
+        duration_minutes: durationMinutesSchema,
+      }),
+    )
     .max(50, 'Możesz dodać maksymalnie 50 punktów.')
     .transform((steps) =>
       steps

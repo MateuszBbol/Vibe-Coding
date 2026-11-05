@@ -112,7 +112,10 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
     form.reset({
       name: recipe.name,
       description: recipe.description ?? '',
-      steps: recipe.steps.map(({ text }) => ({ text })),
+      steps: recipe.steps.map(({ text, duration_minutes }) => ({
+        text,
+        duration_minutes: duration_minutes === null ? '' : String(duration_minutes),
+      })),
       items: recipe.items.map((item) => ({
         name: item.name,
         quantity: item.quantity === null ? '' : String(item.quantity),
@@ -276,6 +279,39 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                   />
                 )}
               />
+              <View style={styles.stepDurationRow}>
+                <Controller
+                  control={form.control}
+                  name={`steps.${index}.duration_minutes`}
+                  render={({ field: { onBlur, onChange, value } }) => (
+                    <TextInput
+                      accessibilityLabel={`${text.stepDuration} ${index + 1}`}
+                      testID={`recipe-step-${index}-duration-input`}
+                      editable={!mutation.isPending}
+                      keyboardType="number-pad"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      placeholder="—"
+                      placeholderTextColor={colors.secondaryText}
+                      value={value}
+                      style={[
+                        styles.durationInput,
+                        {
+                          backgroundColor: colors.background,
+                          borderColor: colors.border,
+                          color: colors.text,
+                        },
+                      ]}
+                    />
+                  )}
+                />
+                <Text style={{ color: colors.secondaryText }}>{text.minutes}</Text>
+              </View>
+              {form.formState.errors.steps?.[index]?.duration_minutes?.message ? (
+                <RecipeError testID={`recipe-step-${index}-duration-error-message`}>
+                  {form.formState.errors.steps[index]?.duration_minutes?.message}
+                </RecipeError>
+              ) : null}
               {form.formState.errors.steps?.[index]?.text?.message ? (
                 <RecipeError testID={`recipe-step-${index}-error-message`}>
                   {form.formState.errors.steps[index]?.text?.message}
@@ -293,7 +329,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
             disabled={mutation.isPending || stepFields.length >= 50}
             label={text.addStep}
             testID="recipe-add-step-button"
-            onPress={() => appendStep({ text: '' })}
+            onPress={() => appendStep({ text: '', duration_minutes: '' })}
           />
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{text.ingredients}</Text>
@@ -570,4 +606,18 @@ const styles = StyleSheet.create({
   categoryOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, marginTop: Spacing.one },
   stepHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stepActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  stepDurationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: Spacing.one,
+  },
+  durationInput: {
+    width: 72,
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.one,
+    textAlign: 'center',
+  },
 });

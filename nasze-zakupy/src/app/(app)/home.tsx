@@ -19,10 +19,11 @@ import { useSession } from '@/features/auth/SessionProvider';
 import { useHouseholds } from '@/features/households/useHouseholds';
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
 import { HouseholdSetup } from '@/features/households/HouseholdSetup';
-import { fetchOrCreateActiveList } from '@/features/shopping/data';
+import { fetchActiveShoppingList } from '@/features/shopping/data';
 import { ShoppingHome } from '@/features/shopping/ShoppingHome';
 import { Colors, Spacing } from '@/constants/theme';
 import { strings } from '@/localization';
+import { supabase } from '@/lib/supabase/client';
 
 export default function SignedInScreen() {
   const { isConfigured, session, signOut } = useSession();
@@ -60,6 +61,7 @@ export default function SignedInScreen() {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void queryClient.invalidateQueries({ queryKey: ['households', userId] });
+        void queryClient.invalidateQueries({ queryKey: ['active-shopping-list', userId] });
       }
     });
     return () => subscription.remove();
@@ -70,9 +72,33 @@ export default function SignedInScreen() {
   };
   const listQuery = useQuery({
     queryKey: ['active-shopping-list', userId, householdId],
-    queryFn: () => fetchOrCreateActiveList(householdId ?? ''),
+    queryFn: () => fetchActiveShoppingList(householdId ?? ''),
     enabled: Boolean(householdId),
   });
+  useEffect(() => {
+    if (!supabase || !householdId || !userId) {
+      return;
+    }
+    const client = supabase;
+    const channel = client
+      .channel(`shopping-lists:${householdId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_lists' }, () => {
+        void queryClient.invalidateQueries({
+          queryKey: ['active-shopping-list', userId, householdId],
+        });
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          logFeatureError('[realtime] shopping lists subscription failed', status, {
+            userId,
+            householdId,
+          });
+        }
+      });
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [householdId, queryClient, userId]);
   useEffect(() => {
     if (listQuery.isError) {
       logFeatureError('[shopping list] load active list failed', listQuery.error, {

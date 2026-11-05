@@ -25,7 +25,7 @@ function requireSupabase() {
   return supabase;
 }
 
-export async function fetchOrCreateActiveList(householdId: string): Promise<ShoppingList> {
+export async function fetchActiveShoppingList(householdId: string): Promise<ShoppingList | null> {
   const client = requireSupabase();
   const { data, error } = await client.rpc('ensure_active_shopping_list', {
     target_household_id: householdId,
@@ -35,14 +35,45 @@ export async function fetchOrCreateActiveList(householdId: string): Promise<Shop
     throw error;
   }
   const activeList = Array.isArray(data) ? data[0] : null;
-  if (
-    !activeList ||
-    typeof activeList.list_id !== 'string' ||
-    typeof activeList.list_name !== 'string'
-  ) {
+  if (!activeList) {
+    return null;
+  }
+  if (typeof activeList.list_id !== 'string' || typeof activeList.list_name !== 'string') {
     throw new Error('Nie udało się otworzyć listy zakupów.');
   }
   return { id: activeList.list_id, name: activeList.list_name };
+}
+
+export async function createShoppingList(householdId: string): Promise<ShoppingList> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('create_shopping_list', {
+    target_household_id: householdId,
+  });
+  if (error) {
+    throw error;
+  }
+  const list = Array.isArray(data) ? data[0] : null;
+  if (
+    !list ||
+    typeof list.list_id !== 'string' ||
+    typeof list.list_name !== 'string'
+  ) {
+    throw new Error('Nie udało się utworzyć listy zakupowej.');
+  }
+  return { id: list.list_id, name: list.list_name };
+}
+
+export async function deleteShoppingList(listId: string): Promise<void> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('delete_shopping_list', {
+    target_list_id: listId,
+  });
+  if (error) {
+    throw error;
+  }
+  if (data !== true) {
+    throw new Error('Nie udało się usunąć listy zakupowej.');
+  }
 }
 
 export async function fetchShoppingItems(listId: string): Promise<ShoppingItem[]> {
