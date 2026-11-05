@@ -34,7 +34,7 @@ describe('foundation translations', () => {
     expect(strings.pl.household.householdCount(3)).toBe('3 z 3 list');
     expect(strings.pl.household.activeLabel).toBe('Aktywna lista');
     expect(strings.pl.household.leaveButton).toBe('Opuść listę');
-    expect(strings.pl.household.deleteHouseholdButton).toBe('Usuń listę');
+    expect(strings.pl.household.deleteHouseholdButton).toBe('Usuń całą listę i dostęp');
     expect(strings.pl.household.invitationsTitle).toBe('Udostępnianie listy');
     expect(strings.pl.household.joinTitle).toBe('Dołącz do listy');
     expect(strings.pl.household.inviteTitle).toBe('Udostępnij listę');

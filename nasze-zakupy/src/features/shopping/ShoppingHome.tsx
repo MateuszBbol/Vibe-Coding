@@ -17,14 +17,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
-import { confirmRecipeAction } from '@/features/recipes/confirmRecipeAction';
 import { recipeRoutes } from '@/features/recipes/routes';
 import type { Household } from '@/features/households/data';
 import { householdRoutes } from '@/features/households/routes';
 import {
   addShoppingItem,
   createShoppingList,
-  deleteShoppingList,
   deleteShoppingItem,
   deletePurchasedShoppingItems,
   fetchShoppingItems,
@@ -48,6 +46,7 @@ import type { ShoppingItemInput, ShoppingItemValues } from '@/features/shopping/
 import { Colors, Spacing } from '@/constants/theme';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ShoppingAppHeader } from '@/features/shopping/ShoppingAppHeader';
+import { TodoSection } from '@/features/todo/TodoSection';
 import { strings } from '@/localization';
 import { supabase } from '@/lib/supabase/client';
 
@@ -230,28 +229,6 @@ export function ShoppingHome({
       setActionError(getFeatureErrorMessage(error));
     },
   });
-  const deleteListMutation = useMutation({
-    mutationFn: () => {
-      if (!listId) {
-        throw new Error('Nie znaleziono aktywnej listy zakupowej.');
-      }
-      return deleteShoppingList(listId);
-    },
-    onSuccess: async () => {
-      queryClient.setQueryData<ShoppingList | null>(activeListQueryKey, null);
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: activeListQueryKey });
-    },
-    onError: (error: unknown) => {
-      logFeatureError('[shopping list] delete failed', error, {
-        userId,
-        householdId: household.id,
-        listId,
-      });
-      setActionError(getFeatureErrorMessage(error));
-    },
-  });
-
   useEffect(() => {
     if (itemsQuery.isError && listId) {
       logFeatureError('[shopping items] load failed', itemsQuery.error, {
@@ -496,20 +473,6 @@ export function ShoppingHome({
       </Pressable>
     </View>
   );
-  const confirmDeleteList = () => {
-    if (!list) {
-      return;
-    }
-    setActionError(null);
-    confirmRecipeAction({
-      title: text.deleteListConfirmTitle,
-      message: text.deleteListConfirmMessage,
-      cancelLabel: strings.pl.auth.cancel,
-      confirmLabel: text.deleteList,
-      onConfirm: () => deleteListMutation.mutate(),
-    });
-  };
-
   if (!list) {
     return (
       <SafeAreaView
@@ -570,6 +533,7 @@ export function ShoppingHome({
               </Text>
             </Pressable>
           </View>
+          <TodoSection householdId={household.id} userId={userId} />
           {signOutError ? (
             <Text
               accessibilityRole="alert"
@@ -604,21 +568,6 @@ export function ShoppingHome({
         />
         {navigation}
         <ScreenHeader title={text.listName} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: deleteListMutation.isPending }}
-          testID="shopping-delete-list-button"
-          disabled={deleteListMutation.isPending}
-          onPress={confirmDeleteList}
-          style={({ pressed }) => [
-            styles.deleteListButton,
-            { opacity: pressed || deleteListMutation.isPending ? 0.6 : 1 },
-          ]}
-        >
-          <Text style={[styles.deletePurchasedText, { color: '#B42318' }]}>
-            {deleteListMutation.isPending ? text.deletingList : text.deleteList}
-          </Text>
-        </Pressable>
         {realtimeStatus !== 'connected' ? (
           <View
             testID="shopping-realtime-status"
@@ -1046,6 +995,8 @@ export function ShoppingHome({
           </>
         )}
 
+        <TodoSection householdId={household.id} userId={userId} />
+
         {signOutError ? (
           <Text
             accessibilityRole="alert"
@@ -1097,13 +1048,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  deleteListButton: {
-    alignSelf: 'flex-end',
-    minHeight: 40,
-    justifyContent: 'center',
-    marginTop: -Spacing.two,
-    marginBottom: Spacing.two,
   },
   syncStatus: {
     minHeight: 34,

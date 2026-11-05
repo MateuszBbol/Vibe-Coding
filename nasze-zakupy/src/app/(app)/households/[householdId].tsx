@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,9 +9,10 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Colors, Spacing } from '@/constants/theme';
+import { confirmRecipeAction } from '@/features/recipes/confirmRecipeAction';
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
 import { removeHouseholdCache } from '@/features/households/cache';
 import { deleteHousehold, leaveHousehold } from '@/features/households/data';
@@ -28,6 +29,12 @@ import {
   HouseholdFrame,
   HouseholdMessage,
 } from '@/features/households/HouseholdUI';
+import {
+  createShoppingList,
+  deleteShoppingList,
+  fetchActiveShoppingList,
+} from '@/features/shopping/data';
+import type { ShoppingList } from '@/features/shopping/data';
 import { useHouseholds } from '@/features/households/useHouseholds';
 import { strings } from '@/localization';
 
@@ -67,6 +74,62 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
   const text = strings.pl.household;
   const household = households.find((entry) => entry.id === householdId);
   const action = household && userId ? getHouseholdAction(household, userId) : null;
+  const activeListQueryKey = ['active-shopping-list', userId, householdId] as const;
+  const shoppingListQuery = useQuery({
+    queryKey: activeListQueryKey,
+    queryFn: () => fetchActiveShoppingList(householdId),
+    enabled: Boolean(userId && household),
+  });
+  const createShoppingListMutation = useMutation({
+    mutationFn: () => createShoppingList(householdId),
+    onSuccess: async (createdList) => {
+      queryClient.setQueryData(activeListQueryKey, createdList);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: activeListQueryKey });
+    },
+    onError: (error: unknown) => {
+      logFeatureError('[shopping list] create from details failed', error, {
+        userId,
+        householdId,
+      });
+      setActionError(getFeatureErrorMessage(error));
+    },
+  });
+  const deleteShoppingListMutation = useMutation({
+    mutationFn: (shoppingListId: string) => deleteShoppingList(shoppingListId),
+    onSuccess: async (_result, deletedListId) => {
+      if (userId) {
+        await queryClient.cancelQueries({
+          queryKey: ['shopping-items', deletedListId],
+          exact: true,
+        });
+        queryClient.removeQueries({
+          queryKey: ['shopping-items', deletedListId],
+          exact: true,
+        });
+      }
+      queryClient.setQueryData<ShoppingList | null>(activeListQueryKey, null);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: activeListQueryKey });
+      router.replace(householdRoutes.list());
+    },
+    onError: (error: unknown, deletedListId) => {
+      logFeatureError('[shopping list] delete from details failed', error, {
+        userId,
+        householdId,
+        listId: deletedListId,
+      });
+      setActionError(getFeatureErrorMessage(error));
+    },
+  });
+  useEffect(() => {
+    if (shoppingListQuery.isError) {
+      logFeatureError('[shopping list] load from details failed', shoppingListQuery.error, {
+        userId,
+        householdId,
+      });
+    }
+  }, [householdId, shoppingListQuery.error, shoppingListQuery.isError, userId]);
 
   const finishRemoval = async () => {
     if (!userId || !household) {
@@ -160,6 +223,20 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
       },
     ]);
   };
+  const confirmDeleteShoppingList = () => {
+    const shoppingList = shoppingListQuery.data;
+    if (!shoppingList) {
+      return;
+    }
+    setActionError(null);
+    confirmRecipeAction({
+      title: text.deleteShoppingListConfirmTitle,
+      message: text.deleteShoppingListConfirmMessage(shoppingList.name),
+      cancelLabel: strings.pl.auth.cancel,
+      confirmLabel: text.deleteShoppingListButton,
+      onConfirm: () => deleteShoppingListMutation.mutate(shoppingList.id),
+    });
+  };
 
   return (
     <HouseholdFrame
@@ -208,6 +285,45 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
               onPress={() => router.push(householdRoutes.invitations(household.id))}
             />
           ) : null}
+          {shoppingListQuery.isPending ? (
+            <ActivityIndicator
+              testID="shopping-list-details-loading"
+              color={colors.accent}
+              size="small"
+            />
+          ) : shoppingListQuery.isError ? (
+            <HouseholdMessage testID="shopping-list-details-error-message">
+              {text.shoppingListLoadFailed}
+            </HouseholdMessage>
+          ) : shoppingListQuery.data ? (
+            <HouseholdButton
+              label={
+                deleteShoppingListMutation.isPending
+                  ? text.deletingShoppingList
+                  : text.deleteShoppingListButton
+              }
+              testID="shopping-delete-list-button"
+              destructive
+              disabled={deleteShoppingListMutation.isPending}
+              onPress={confirmDeleteShoppingList}
+            />
+          ) : (
+            <>
+              <HouseholdMessage testID="shopping-list-empty-state">
+                {text.noShoppingList}
+              </HouseholdMessage>
+              <HouseholdButton
+                label={
+                  createShoppingListMutation.isPending
+                    ? text.creatingShoppingList
+                    : text.createShoppingList
+                }
+                testID="shopping-list-create-button"
+                disabled={createShoppingListMutation.isPending}
+                onPress={() => createShoppingListMutation.mutate()}
+              />
+            </>
+          )}
           {actionError ? (
             <Text
               accessibilityRole="alert"
