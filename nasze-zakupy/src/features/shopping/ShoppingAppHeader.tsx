@@ -1,5 +1,12 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
 
@@ -24,19 +31,20 @@ export function ShoppingAppHeader({
 }: ShoppingAppHeaderProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
+  const isCompact = useWindowDimensions().width < 960;
 
   return (
-    <View style={styles.container}>
-      <View pointerEvents="none" style={styles.center}>
+    <View style={[styles.container, isCompact && styles.compactContainer]}>
+      <View pointerEvents="none" style={isCompact ? styles.compactCenter : styles.center}>
         <Text
           accessibilityRole="header"
           numberOfLines={1}
-          style={[styles.title, { color: colors.text }]}
+          style={[styles.title, isCompact && styles.compactTitle, { color: colors.text }]}
         >
           {title}
         </Text>
       </View>
-      <View style={styles.right}>
+      <View style={[styles.right, isCompact && styles.compactRight]}>
         <View style={styles.identity}>
           <View style={styles.userNameRow}>
             <SymbolView
@@ -72,6 +80,7 @@ export function ShoppingAppHeader({
           hitSlop={8}
           style={({ pressed }) => [
             styles.logout,
+            isCompact && styles.compactLogout,
             { opacity: isSigningOut ? 0.5 : pressed ? 0.65 : 1 },
           ]}
         >
@@ -94,6 +103,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginBottom: Spacing.two,
   },
+  compactContainer: {
+    minHeight: 72,
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
   right: {
     width: '48%',
     minWidth: 0,
@@ -101,6 +115,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: Spacing.one,
+  },
+  compactRight: {
+    width: '100%',
+    minHeight: 32,
   },
   identity: {
     flex: 1,
@@ -138,6 +156,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  compactCenter: {
+    width: '100%',
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
     maxWidth: '48%',
     fontSize: 25,
@@ -145,10 +169,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  compactTitle: {
+    maxWidth: '90%',
+  },
   logout: {
     width: 40,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  compactLogout: {
+    minHeight: 32,
   },
 });
