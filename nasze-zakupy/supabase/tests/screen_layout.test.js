@@ -25,19 +25,24 @@ describe('screen layout contract', () => {
     expect(localization).toContain("create: 'New recipe'");
   });
 
-  it('places full-width shopping navigation buttons vertically before the centered list title', () => {
+  it('places compact horizontal navigation and section tabs before the shopping title', () => {
     expect(shopping.indexOf('styles.navigationButtons')).toBeLessThan(
       shopping.indexOf('<ScreenHeader'),
     );
+    expect(shopping.indexOf('styles.navigationButtons')).toBeLessThan(
+      shopping.indexOf('styles.tabs'),
+    );
     expect(shopping).toContain('router.push(recipeRoutes.list(household.id))');
     expect(shopping).toContain('router.push(householdRoutes.root())');
-    expect(shopping).toContain("flexDirection: 'column'");
-    expect(shopping).toContain("width: '100%'");
+    expect(shopping).toContain("flexDirection: 'row'");
+    expect(shopping).toContain('flex: 1');
     expect(shopping).toContain('minHeight: 40');
     expect(shopping).toContain('borderRadius: 12');
     expect(shopping).toContain('paddingHorizontal: Spacing.two');
-    expect(shopping).toContain('fontSize: 15');
+    expect(shopping).toContain('fontSize: 13');
     expect(shopping).toContain("fontWeight: '700'");
+    expect(shopping).toContain('testID="home-tab-shopping"');
+    expect(shopping).toContain('testID="home-tab-todo"');
   });
 
   it('shares a centered header between recipe and household screens', () => {
