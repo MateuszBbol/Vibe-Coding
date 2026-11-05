@@ -62,44 +62,42 @@ describe('screen layout contract', () => {
     expect(shopping).not.toContain("'/households/index'");
   });
 
-  it('renders the app header from the active user and household data', () => {
+  it('renders the app header from the active user and shopping list data', () => {
     expect(shopping).toContain('<ShoppingAppHeader');
     expect(shopping).toContain('userName={displayName}');
-    expect(shopping).toContain('householdName={household.name}');
+    expect(shopping).toContain('activeListName={list?.name ??');
     expect(shopping).toContain('title={text.title}');
     expect(shoppingHeader).toContain('{userName}');
-    expect(shoppingHeader).toContain('{householdName}');
+    expect(shoppingHeader).toContain('{activeListName || noActiveListLabel}');
+    expect(shoppingHeader).toContain("ios: 'person.crop.circle'");
     expect(home).toContain('household={activeHousehold}');
     expect(shopping).toContain('<ScreenHeader title={text.listName} />');
   });
 
-  it('centers branding independently and truncates the user and household label', () => {
+  it('centers branding independently and truncates the user and active-list labels', () => {
     expect(shoppingHeader).toContain("position: 'absolute'");
     expect(shoppingHeader).toContain('left: 0');
     expect(shoppingHeader).toContain('right: 0');
     expect(shoppingHeader).toContain("textAlign: 'center'");
-    expect(shoppingHeader).toContain('onLayout={handleTitleLayout}');
-    expect(shoppingHeader).toContain('maxWidth: maxSideWidth');
     expect(shoppingHeader.match(/numberOfLines={1}/g)).toHaveLength(3);
     expect(shoppingHeader.match(/ellipsizeMode="tail"/g)).toHaveLength(2);
-    expect(shoppingHeader).toContain('fontSize: 28');
+    expect(shoppingHeader).toContain('fontSize: 25');
     expect(shoppingHeader).toContain("fontWeight: '700'");
   });
 
-  it('uses the screen and section heading hierarchy and shows the shopping section as List', () => {
+  it('does not repeat the shopping list heading after the product form', () => {
     expect(localization).toContain("toBuy: 'Lista'");
     expect(localization).toContain("toBuy: 'List'");
     expect(localization).not.toContain("toBuy: 'Do kupienia'");
-    expect(shopping).toContain('styles.centeredSectionTitle');
-    expect(shopping).toContain("alignSelf: 'stretch'");
-    expect(shopping).toContain("textAlign: 'center'");
+    expect(shopping).not.toContain('{text.toBuy}');
     expect(shopping).not.toContain("toLocaleUpperCase('pl-PL')");
-    expect(shopping).toContain("fontStyle: 'italic'");
-    expect(shopping).toContain('fontSize: 15');
-    expect(shopping).toContain('fontSize: 20');
     expect(screenHeader).toContain('fontSize: 24');
     expect(screenHeader).toContain('fontSize: 26');
-    expect(shoppingHeader).toContain('fontSize: 28');
+    expect(shoppingHeader).toContain('fontSize: 25');
+    expect(localization).toContain("todoTitle: 'Zadania'");
+    expect(localization).toContain("todoTab: 'Zadania'");
+    expect(localization).toContain("todoTitle: 'Tasks'");
+    expect(localization).toContain("todoTab: 'Tasks'");
   });
 
   it('uses a native logout symbol without visible text and keeps the existing handler', () => {
@@ -132,11 +130,13 @@ describe('screen layout contract', () => {
     expect(shopping).not.toContain('${text.change} ›');
   });
 
-  it('uses the existing delete action with a subtle native trash icon and compact product rows', () => {
+  it('provides direct product edit and delete actions with compact product rows', () => {
     expect(shopping).toContain('onPress={() => deleteMutation.mutate(item.id)}');
     expect(shopping).toContain("ios: 'trash', android: 'delete_outline', web: 'delete_outline'");
-    expect(shopping).not.toContain('styles.deleteText');
-    expect(shopping).toContain('minHeight: 56');
+    expect(shopping).toContain('testID={`shopping-item-edit-${item.id}`}');
+    expect(shopping).toContain('accessibilityLabel={text.editItem}');
+    expect(shopping).toContain('testID={`shopping-edit-save-${item.id}`}');
+    expect(shopping).toContain('minHeight: 50');
     expect(shopping).toContain('height: 48');
   });
 

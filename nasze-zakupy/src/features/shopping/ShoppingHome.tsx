@@ -27,6 +27,7 @@ import {
   deletePurchasedShoppingItems,
   fetchShoppingItems,
   setShoppingItemPurchased,
+  updateShoppingItem,
 } from '@/features/shopping/data';
 import type { ShoppingItem, ShoppingList } from '@/features/shopping/data';
 import {
@@ -105,6 +106,13 @@ export function ShoppingHome({
   const [activeTab, setActiveTab] = useState<'shopping' | 'todo'>('shopping');
   const [showUnitOptions, setShowUnitOptions] = useState(false);
   const [showCategoryOptions, setShowCategoryOptions] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editUnit, setEditUnit] = useState<ShoppingItem['unit']>(null);
+  const [editCategory, setEditCategory] = useState<ShoppingItem['category']>(null);
+  const [editUnitOptionsOpen, setEditUnitOptionsOpen] = useState(false);
+  const [editCategoryOptionsOpen, setEditCategoryOptionsOpen] = useState(false);
   const channelSequence = useRef(0);
   const categoryManuallyOverridden = useRef(false);
   const {
@@ -170,6 +178,61 @@ export function ShoppingHome({
       setActionError(getFeatureErrorMessage(error));
     },
   });
+  const updateMutation = useMutation({
+    mutationFn: ({
+      itemId,
+      values,
+    }: {
+      itemId: string;
+      values: {
+        name: string;
+        quantity: number | null;
+        unit: ShoppingItem['unit'];
+        category: ShoppingItem['category'];
+      };
+    }) => {
+      if (!listId) {
+        throw new Error('Najpierw utwórz listę zakupową.');
+      }
+      return updateShoppingItem(
+        listId,
+        itemId,
+        values.name,
+        values.quantity,
+        values.unit,
+        values.category,
+      );
+    },
+    onSuccess: async () => {
+      setEditingItemId(null);
+      setEditName('');
+      setEditQuantity('');
+      setEditUnit(null);
+      setEditCategory(null);
+      setEditUnitOptionsOpen(false);
+      setEditCategoryOptionsOpen(false);
+      setActionError(null);
+      await refreshItems();
+    },
+    onError: (error: unknown) => {
+      logFeatureError('[shopping item] update failed', error, {
+        userId,
+        householdId: household.id,
+        listId,
+      });
+      const errorText =
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string'
+          ? error.message.toLowerCase()
+          : '';
+      const message = errorText.includes('cannot be safely merged')
+        ? text.itemMergeConflict
+        : getFeatureErrorMessage(error);
+      setActionError(message);
+    },
+  });
   const toggleMutation = useMutation({
     mutationFn: ({ itemId, purchased }: { itemId: string; purchased: boolean }) => {
       if (!listId) {
@@ -210,6 +273,7 @@ export function ShoppingHome({
       return deleteShoppingItem(listId, itemId);
     },
     onSuccess: async () => {
+      setEditingItemId(null);
       setActionError(null);
       await refreshItems();
     },
@@ -372,76 +436,297 @@ export function ShoppingHome({
     setActionError(null);
     addMutation.mutate(values);
   };
+  const beginItemEdit = (item: ShoppingItem) => {
+    setEditingItemId(item.id);
+    setEditName(item.name);
+    setEditQuantity(item.quantity?.toString() ?? '');
+    setEditUnit(item.unit);
+    setEditCategory(item.category);
+    setEditUnitOptionsOpen(false);
+    setEditCategoryOptionsOpen(false);
+    setActionError(null);
+  };
+  const cancelItemEdit = () => {
+    setEditingItemId(null);
+    setEditName('');
+    setEditQuantity('');
+    setEditUnit(null);
+    setEditCategory(null);
+    setEditUnitOptionsOpen(false);
+    setEditCategoryOptionsOpen(false);
+    setActionError(null);
+  };
+  const saveItemEdit = (itemId: string) => {
+    const parsed = shoppingItemSchema.safeParse({
+      name: editName,
+      quantity: editQuantity.trim() || '1',
+      unit: editUnit,
+      category: editCategory,
+    });
+    if (!parsed.success) {
+      setActionError(parsed.error.issues[0]?.message ?? text.actionFailed);
+      return;
+    }
+
+    setActionError(null);
+    updateMutation.mutate({
+      itemId,
+      values: {
+        ...parsed.data,
+        quantity: editQuantity.trim() ? parsed.data.quantity : null,
+      },
+    });
+  };
   const items = itemsQuery.data ?? [];
   const itemsToBuy = groupUnpurchasedItems(items);
   const purchasedItems = items.filter((item) => item.is_purchased);
 
-  const renderItem = (item: ShoppingItem) => (
-    <View
-      key={item.id}
-      testID={`shopping-item-${item.id}`}
-      style={[styles.item, { borderBottomColor: colors.border }]}
-    >
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.is_purchased, disabled: toggleMutation.isPending }}
-        accessibilityLabel={[item.name, formatShoppingItemQuantity(item.quantity, item.unit)]
-          .filter(Boolean)
-          .join(', ')}
-        testID={`shopping-item-checkbox-${item.id}`}
-        disabled={toggleMutation.isPending}
-        onPress={() => toggleMutation.mutate({ itemId: item.id, purchased: !item.is_purchased })}
-        style={styles.itemToggle}
+  const renderItem = (item: ShoppingItem) => {
+    const isEditing = editingItemId === item.id;
+    const isItemActionPending =
+      updateMutation.isPending || deleteMutation.isPending || toggleMutation.isPending;
+
+    return (
+      <View
+        key={item.id}
+        testID={`shopping-item-${item.id}`}
+        style={[styles.item, { borderBottomColor: colors.border }]}
       >
-        <Text
-          style={[
-            styles.checkmark,
-            { color: item.is_purchased ? colors.accent : colors.secondaryText },
-          ]}
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{
+            checked: item.is_purchased,
+            disabled: isItemActionPending || isEditing,
+          }}
+          accessibilityLabel={[item.name, formatShoppingItemQuantity(item.quantity, item.unit)]
+            .filter(Boolean)
+            .join(', ')}
+          testID={`shopping-item-checkbox-${item.id}`}
+          disabled={isItemActionPending || isEditing}
+          onPress={() => toggleMutation.mutate({ itemId: item.id, purchased: !item.is_purchased })}
+          style={styles.itemToggle}
         >
-          {item.is_purchased ? '✓' : '○'}
-        </Text>
-        <View style={styles.itemTextContainer}>
           <Text
-            testID={`shopping-item-name-${item.id}`}
             style={[
-              styles.itemName,
-              {
-                color: item.is_purchased ? colors.secondaryText : colors.text,
-                textDecorationLine: item.is_purchased ? 'line-through' : 'none',
-              },
+              styles.checkmark,
+              { color: item.is_purchased ? colors.accent : colors.secondaryText },
             ]}
           >
-            {item.name}
+            {item.is_purchased ? '✓' : '○'}
           </Text>
-          {formatShoppingItemQuantity(item.quantity, item.unit) ? (
+        </Pressable>
+        {isEditing ? (
+          <View style={[styles.itemTextContainer, styles.editItemForm]}>
+            <TextInput
+              accessibilityLabel={text.editItem}
+              testID={`shopping-edit-name-${item.id}`}
+              editable={!updateMutation.isPending}
+              maxLength={120}
+              onChangeText={setEditName}
+              style={[
+                styles.nameInput,
+                styles.editNameInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              value={editName}
+            />
+            <View style={styles.editItemSelectors}>
+              <TextInput
+                accessibilityLabel={text.quantityLabel}
+                testID={`shopping-edit-quantity-${item.id}`}
+                editable={!updateMutation.isPending}
+                keyboardType="decimal-pad"
+                onChangeText={setEditQuantity}
+                placeholder={text.quantityPlaceholder}
+                placeholderTextColor={colors.secondaryText}
+                style={[
+                  styles.quantityInput,
+                  styles.editQuantityInput,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
+                value={editQuantity}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text.unitLabel}
+                testID={`shopping-edit-unit-${item.id}`}
+                onPress={() => setEditUnitOptionsOpen((open) => !open)}
+                style={[
+                  styles.editSelector,
+                  { backgroundColor: colors.background, borderColor: colors.border },
+                ]}
+              >
+                <Text style={{ color: colors.text }}>{editUnit ?? text.noUnit}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text.categoryLabel}
+                testID={`shopping-edit-category-${item.id}`}
+                onPress={() => setEditCategoryOptionsOpen((open) => !open)}
+                style={[
+                  styles.editSelector,
+                  { backgroundColor: colors.background, borderColor: colors.border },
+                ]}
+              >
+                <Text style={{ color: colors.text }} numberOfLines={1}>
+                  {getShoppingCategory(editCategory).emoji}{' '}
+                  {getShoppingCategory(editCategory).label}
+                </Text>
+              </Pressable>
+            </View>
+            {editUnitOptionsOpen ? (
+              <View style={styles.editOptions}>
+                {[null, ...shoppingUnits].map((unit) => (
+                  <Pressable
+                    key={unit ?? 'none'}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: editUnit === unit }}
+                    testID={`shopping-edit-unit-option-${unit ?? 'none'}`}
+                    onPress={() => {
+                      setEditUnit(unit);
+                      setEditUnitOptionsOpen(false);
+                    }}
+                    style={[
+                      styles.categoryOption,
+                      {
+                        backgroundColor: editUnit === unit ? colors.accentSoft : colors.background,
+                        borderColor: editUnit === unit ? colors.accent : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.categoryOptionText, { color: colors.text }]}>
+                      {unit ?? text.noUnit}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {editCategoryOptionsOpen ? (
+              <View style={styles.editOptions}>
+                {shoppingCategories.map((category) => (
+                  <Pressable
+                    key={category.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: editCategory === category.id }}
+                    testID={`shopping-edit-category-option-${category.id}`}
+                    onPress={() => {
+                      setEditCategory(category.id);
+                      setEditCategoryOptionsOpen(false);
+                    }}
+                    style={[
+                      styles.categoryOption,
+                      {
+                        backgroundColor:
+                          editCategory === category.id ? colors.accentSoft : colors.background,
+                        borderColor: editCategory === category.id ? colors.accent : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.categoryOptionText, { color: colors.text }]}>
+                      {category.emoji} {category.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.editItemActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text.saveItem}
+                testID={`shopping-edit-save-${item.id}`}
+                disabled={updateMutation.isPending}
+                onPress={() => saveItemEdit(item.id)}
+                style={styles.itemActionButton}
+              >
+                <Text style={[styles.editActionText, { color: colors.accent }]}>
+                  {text.saveItem}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text.cancelItemEdit}
+                testID={`shopping-edit-cancel-${item.id}`}
+                disabled={updateMutation.isPending}
+                onPress={cancelItemEdit}
+                style={styles.itemActionButton}
+              >
+                <Text style={[styles.editActionText, { color: colors.secondaryText }]}>
+                  {text.cancelItemEdit}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.itemTextContainer}>
             <Text
-              testID={`shopping-item-quantity-${item.id}`}
-              style={[styles.quantity, { color: colors.secondaryText }]}
+              testID={`shopping-item-name-${item.id}`}
+              style={[
+                styles.itemName,
+                {
+                  color: item.is_purchased ? colors.secondaryText : colors.text,
+                  textDecorationLine: item.is_purchased ? 'line-through' : 'none',
+                },
+              ]}
             >
-              {formatShoppingItemQuantity(item.quantity, item.unit)}
+              {item.name}
             </Text>
-          ) : null}
+            {formatShoppingItemQuantity(item.quantity, item.unit) ? (
+              <Text
+                testID={`shopping-item-quantity-${item.id}`}
+                style={[styles.quantity, { color: colors.secondaryText }]}
+              >
+                {formatShoppingItemQuantity(item.quantity, item.unit)}
+              </Text>
+            ) : null}
+          </View>
+        )}
+        <View style={styles.itemActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={text.editItem}
+            accessibilityHint={text.editItem}
+            accessibilityState={{ disabled: isItemActionPending }}
+            testID={`shopping-item-edit-${item.id}`}
+            disabled={isItemActionPending}
+            onPress={() => (isEditing ? cancelItemEdit() : beginItemEdit(item))}
+            hitSlop={6}
+            style={styles.itemActionButton}
+          >
+            <SymbolView
+              name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+              tintColor={colors.secondaryText}
+              size={18}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={text.deleteItem}
+            accessibilityHint={text.deleteItem}
+            accessibilityState={{ disabled: isItemActionPending }}
+            testID={`shopping-item-delete-${item.id}`}
+            disabled={isItemActionPending}
+            onPress={() => deleteMutation.mutate(item.id)}
+            hitSlop={6}
+            style={styles.itemActionButton}
+          >
+            <SymbolView
+              name={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
+              tintColor={colors.secondaryText}
+              size={18}
+            />
+          </Pressable>
         </View>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${text.deleteItem}: ${item.name}`}
-        accessibilityState={{ disabled: deleteMutation.isPending }}
-        testID={`shopping-item-delete-${item.id}`}
-        disabled={deleteMutation.isPending}
-        onPress={() => deleteMutation.mutate(item.id)}
-        hitSlop={8}
-        style={styles.deleteButton}
-      >
-        <SymbolView
-          name={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
-          tintColor={colors.secondaryText}
-          size={20}
-        />
-      </Pressable>
-    </View>
-  );
+      </View>
+    );
+  };
 
   const navigation = (
     <View style={styles.navigationButtons}>
@@ -458,8 +743,13 @@ export function ShoppingHome({
           },
         ]}
       >
+        <SymbolView
+          name={{ ios: 'book.closed', android: 'menu_book', web: 'menu_book' }}
+          tintColor={colors.accent}
+          size={18}
+        />
         <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
-          📖 {strings.pl.recipes.open}
+          {strings.pl.recipes.open}
         </Text>
       </Pressable>
       <Pressable
@@ -475,8 +765,13 @@ export function ShoppingHome({
           },
         ]}
       >
+        <SymbolView
+          name={{ ios: 'house', android: 'home', web: 'home' }}
+          tintColor={colors.accent}
+          size={18}
+        />
         <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
-          🏠 {strings.pl.household.listTitle}
+          {strings.pl.household.listTitle}
         </Text>
       </Pressable>
     </View>
@@ -505,8 +800,8 @@ export function ShoppingHome({
             { color: activeTab === 'shopping' ? colors.background : colors.text },
           ]}
         >
-          🛒 {strings.pl.shopping.shoppingTab}{' '}
-          {itemsQuery.data?.filter((item) => !item.is_purchased).length ?? 0}
+          🛒 {strings.pl.shopping.shoppingTab} (
+          {itemsQuery.data?.filter((item) => !item.is_purchased).length ?? 0})
         </Text>
       </Pressable>
       <Pressable
@@ -527,7 +822,7 @@ export function ShoppingHome({
             { color: activeTab === 'todo' ? colors.background : colors.text },
           ]}
         >
-          ✓ {strings.pl.shopping.todoTab} {todoCount}
+          ✓ {strings.pl.shopping.todoTab} ({todoCount})
         </Text>
       </Pressable>
     </View>
@@ -545,7 +840,8 @@ export function ShoppingHome({
         >
           <ShoppingAppHeader
             userName={displayName}
-            householdName={household.name}
+            activeListName=""
+            noActiveListLabel={text.noActiveList}
             title={text.title}
             signOutLabel={text.signOut}
             isSigningOut={isSigningOut}
@@ -628,7 +924,8 @@ export function ShoppingHome({
       >
         <ShoppingAppHeader
           userName={displayName}
-          householdName={household.name}
+          activeListName={list?.name ?? ''}
+          noActiveListLabel={text.noActiveList}
           title={text.title}
           signOutLabel={text.signOut}
           isSigningOut={isSigningOut}
@@ -1009,12 +1306,6 @@ export function ShoppingHome({
             </View>
           ) : (
             <>
-              <Text
-                accessibilityRole="header"
-                style={[styles.sectionTitle, styles.centeredSectionTitle, { color: colors.text }]}
-              >
-                {text.toBuy}
-              </Text>
               {itemsToBuy.length > 0 ? (
                 itemsToBuy.map(({ category, items: categoryItems }) => (
                   <View key={category.id} testID={`shopping-category-${category.id}`}>
@@ -1118,6 +1409,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.one,
     paddingHorizontal: Spacing.two,
   },
   navigationButtonText: {
@@ -1308,10 +1601,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: Spacing.two,
   },
-  centeredSectionTitle: {
-    alignSelf: 'stretch',
-    textAlign: 'center',
-  },
   deletePurchasedButton: {
     alignSelf: 'flex-start',
     minHeight: 40,
@@ -1329,17 +1618,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   item: {
-    minHeight: 56,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   itemToggle: {
-    flex: 1,
-    flexDirection: 'row',
+    width: 34,
+    height: 48,
     alignItems: 'center',
-    minHeight: 56,
-    gap: Spacing.three,
+    justifyContent: 'center',
   },
   checkmark: {
     width: 24,
@@ -1348,11 +1636,52 @@ const styles = StyleSheet.create({
   },
   itemTextContainer: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
+  editItemForm: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    paddingVertical: Spacing.two,
+  },
+  editNameInput: {
+    width: '100%',
+    flex: 0,
+  },
+  editQuantityInput: {
+    width: 88,
+    flex: 0,
+  },
+  editItemSelectors: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+  },
+  editSelector: {
+    flex: 1,
+    minWidth: 72,
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.one,
+  },
+  editOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+  },
+  editItemActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.two,
+  },
+  editActionText: { fontSize: 13, fontWeight: '600' },
   itemName: {
     flex: 1,
     fontSize: 16,
@@ -1362,9 +1691,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 'auto',
   },
-  deleteButton: {
-    width: 40,
-    height: 48,
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemActionButton: {
+    width: 38,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

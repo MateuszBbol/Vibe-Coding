@@ -1,24 +1,22 @@
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
-import type { LayoutChangeEvent } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
 
 type ShoppingAppHeaderProps = {
   userName: string;
-  householdName: string;
+  activeListName: string;
+  noActiveListLabel: string;
   title: string;
   signOutLabel: string;
   isSigningOut: boolean;
   onSignOut: () => void;
 };
 
-const logoutButtonWidth = 44;
-
 export function ShoppingAppHeader({
   userName,
-  householdName,
+  activeListName,
+  noActiveListLabel,
   title,
   signOutLabel,
   isSigningOut,
@@ -26,67 +24,64 @@ export function ShoppingAppHeader({
 }: ShoppingAppHeaderProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [titleWidth, setTitleWidth] = useState(0);
-  const maxSideWidth = Math.max(
-    0,
-    (containerWidth - titleWidth - logoutButtonWidth - Spacing.two * 2) / 2,
-  );
-
-  const handleContainerLayout = (event: LayoutChangeEvent) => {
-    setContainerWidth(event.nativeEvent.layout.width);
-  };
-  const handleTitleLayout = (event: LayoutChangeEvent) => {
-    setTitleWidth(event.nativeEvent.layout.width);
-  };
 
   return (
-    <View style={styles.container} onLayout={handleContainerLayout}>
-      <View style={[styles.left, { maxWidth: maxSideWidth }]}>
-        <Text
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={[styles.userName, { color: colors.text }]}
-        >
-          {userName}
-        </Text>
-        <Text
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={[styles.householdName, { color: colors.secondaryText }]}
-        >
-          {householdName}
-        </Text>
-      </View>
+    <View style={styles.container}>
       <View pointerEvents="none" style={styles.center}>
         <Text
           accessibilityRole="header"
           numberOfLines={1}
-          onLayout={handleTitleLayout}
           style={[styles.title, { color: colors.text }]}
         >
           {title}
         </Text>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={signOutLabel}
-        accessibilityState={{ disabled: isSigningOut }}
-        testID="profile-logout-button"
-        disabled={isSigningOut}
-        onPress={onSignOut}
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.logout,
-          { opacity: isSigningOut ? 0.5 : pressed ? 0.65 : 1 },
-        ]}
-      >
-        <SymbolView
-          name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }}
-          tintColor={colors.secondaryText}
-          size={24}
-        />
-      </Pressable>
+      <View style={styles.right}>
+        <View style={styles.identity}>
+          <View style={styles.userNameRow}>
+            <SymbolView
+              name={{ ios: 'person.crop.circle', android: 'account_circle', web: 'account_circle' }}
+              tintColor={colors.accent}
+              size={18}
+            />
+            <Text
+              testID="profile-user-name"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.userName, { color: colors.text }]}
+            >
+              {userName}
+            </Text>
+          </View>
+          <Text
+            testID="active-shopping-list-name"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[styles.activeListName, { color: colors.secondaryText }]}
+          >
+            {activeListName || noActiveListLabel}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={signOutLabel}
+          accessibilityState={{ disabled: isSigningOut }}
+          testID="profile-logout-button"
+          disabled={isSigningOut}
+          onPress={onSignOut}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.logout,
+            { opacity: isSigningOut ? 0.5 : pressed ? 0.65 : 1 },
+          ]}
+        >
+          <SymbolView
+            name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }}
+            tintColor={colors.secondaryText}
+            size={22}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -96,22 +91,42 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: Spacing.two,
   },
-  left: {
+  right: {
+    width: '48%',
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.one,
+  },
+  identity: {
     flex: 1,
     minWidth: 0,
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  userNameRow: {
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
   userName: {
-    fontSize: 15,
-    lineHeight: 18,
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: '600',
   },
-  householdName: {
+  activeListName: {
+    maxWidth: '100%',
     fontSize: 12,
     lineHeight: 15,
     fontWeight: '500',
+    textAlign: 'right',
   },
   center: {
     position: 'absolute',
@@ -119,20 +134,21 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    maxWidth: '60%',
-    fontSize: 28,
+    maxWidth: '48%',
+    fontSize: 25,
     lineHeight: 32,
     fontWeight: '700',
     textAlign: 'center',
   },
   logout: {
-    width: logoutButtonWidth,
+    width: 40,
     minHeight: 44,
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
   },
 });

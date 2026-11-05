@@ -4,6 +4,7 @@ import {
   deletePurchasedShoppingItems,
   deleteShoppingList,
   fetchActiveShoppingList,
+  updateShoppingItem,
 } from './data';
 
 const mockFrom = jest.fn();
@@ -122,5 +123,24 @@ describe('shopping data operations', () => {
       category: 'dairy',
       created_by: 'user-id',
     });
+  });
+
+  it('updates an existing shopping item through the safe merge RPC', async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: null });
+    await updateShoppingItem('active-list-id', 'item-id', '  Mleko  ', 3, 'l', 'dairy');
+
+    expect(mockRpc).toHaveBeenCalledWith('update_shopping_item', {
+      target_list_id: 'active-list-id',
+      target_item_id: 'item-id',
+      target_name: 'Mleko',
+      target_quantity: 3,
+      target_unit: 'l',
+      target_category: 'dairy',
+    });
+
+    mockRpc.mockResolvedValueOnce({ data: null, error: new Error('RPC failed') });
+    await expect(
+      updateShoppingItem('active-list-id', 'item-id', 'Mleko', null, null, null),
+    ).rejects.toThrow('RPC failed');
   });
 });

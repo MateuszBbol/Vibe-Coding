@@ -28,7 +28,7 @@ describe('foundation translations', () => {
   it('uses shopping-list terminology in all user-facing Polish and English copy', () => {
     expect(collectStringValues(strings.pl).join(' ')).not.toMatch(/gospodarst/i);
     expect(collectStringValues(strings.en).join(' ')).not.toMatch(/households?/i);
-    expect(strings.pl.household.managementTitle).toBe('Listy zakupowe');
+    expect(strings.pl.household.managementTitle).toBe('Moje listy');
     expect(strings.pl.household.listTitle).toBe('Moje listy');
     expect(strings.pl.household.newHousehold).toBe('Nowa lista zakupowa');
     expect(strings.pl.household.householdCount(3)).toBe('3 z 3 list');

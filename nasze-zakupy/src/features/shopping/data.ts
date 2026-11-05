@@ -53,11 +53,7 @@ export async function createShoppingList(householdId: string): Promise<ShoppingL
     throw error;
   }
   const list = Array.isArray(data) ? data[0] : null;
-  if (
-    !list ||
-    typeof list.list_id !== 'string' ||
-    typeof list.list_name !== 'string'
-  ) {
+  if (!list || typeof list.list_id !== 'string' || typeof list.list_name !== 'string') {
     throw new Error('Nie udało się utworzyć listy zakupowej.');
   }
   return { id: list.list_id, name: list.list_name };
@@ -111,6 +107,27 @@ export async function addShoppingItem(
     created_by: userId,
   });
 
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateShoppingItem(
+  listId: string,
+  itemId: string,
+  name: string,
+  quantity: number | null,
+  unit: ShoppingUnit | null,
+  category: ShoppingCategoryId | null,
+): Promise<void> {
+  const { error } = await requireSupabase().rpc('update_shopping_item', {
+    target_list_id: listId,
+    target_item_id: itemId,
+    target_name: name.trim(),
+    target_quantity: quantity,
+    target_unit: unit,
+    target_category: category,
+  });
   if (error) {
     throw error;
   }

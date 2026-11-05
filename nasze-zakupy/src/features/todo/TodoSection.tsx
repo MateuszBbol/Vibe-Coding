@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import { SymbolView } from 'expo-symbols';
 import {
   ActivityIndicator,
   Pressable,
@@ -51,6 +52,12 @@ function sortByDeadline(left: TodoItem, right: TodoItem): number {
   return left.due_date.localeCompare(right.due_date);
 }
 
+function formatMemberNames(names: string[]): string {
+  return names.length > 2
+    ? `${names.slice(0, 2).join(', ')} +${names.length - 2}`
+    : names.join(', ');
+}
+
 function TodoMemberPicker({
   members,
   selectedIds,
@@ -85,10 +92,14 @@ function TodoMemberPicker({
         <Text style={[styles.memberPickerLabel, { color: colors.text }]}>{text.todoMembers}</Text>
         <Text style={[styles.memberPickerSummary, { color: colors.secondaryText }]}>
           {selectedIds.length
-            ? members
-                .filter((member) => selectedIds.includes(member.user_id))
-                .map((member) => member.display_name?.trim() || member.user_id.slice(0, 8))
-                .join(', ')
+            ? formatMemberNames(
+                members
+                  .filter((member) => selectedIds.includes(member.user_id))
+                  .map(
+                    (member) =>
+                      member.display_name?.trim() || `Użytkownik ${member.user_id.slice(0, 8)}`,
+                  ),
+              )
             : text.todoNoAssignees}
         </Text>
         <Text style={[styles.memberPickerArrow, { color: colors.accent }]}>
@@ -157,7 +168,6 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
   const [editTitle, setEditTitle] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
-  const [menuItemId, setMenuItemId] = useState<string | null>(null);
   const [completedExpanded, setCompletedExpanded] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [realtimeError, setRealtimeError] = useState(false);
@@ -214,7 +224,6 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         setEditDueDate('');
         setEditAssigneeIds([]);
       }
-      setMenuItemId(null);
       setActionError(null);
       await refreshItems();
     },
@@ -228,7 +237,6 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
     onSuccess: async () => {
       setActionError(null);
       setEditingId(null);
-      setMenuItemId(null);
       await refreshItems();
     },
     onError: (error: unknown, itemId) => {
@@ -320,7 +328,6 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
 
   const beginEdit = (item: TodoItem) => {
     setEditingId(item.id);
-    setMenuItemId(null);
     setEditTitle(item.title);
     setEditDueDate(item.due_date ?? '');
     setEditAssigneeIds(item.assignees.map(({ user_id: id }) => id));
@@ -355,7 +362,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         overdue: text.todoOverdue,
         today: text.todoToday,
         tomorrow: text.todoTomorrow,
-        upcoming: text.todoUpcoming,
+        upcoming: text.todoLater,
         noDeadline: text.todoNoDeadline,
       }[key],
       items: pendingItems.filter((item) => getDueGroup(item.due_date, today, tomorrow) === key),
@@ -365,12 +372,11 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
   const renderItem = (item: TodoItem) => {
     const isEditing = editingId === item.id;
     const isPending = updateMutation.isPending || deleteMutation.isPending || addMutation.isPending;
-    const assignedNames = item.assignees
-      .map((assignment) => {
-        const member = membersById.get(assignment.user_id);
-        return member?.display_name?.trim() || `Użytkownik ${assignment.user_id.slice(0, 8)}`;
-      })
-      .join(', ');
+    const assignedNames = item.assignees.map((assignment) => {
+      const member = membersById.get(assignment.user_id);
+      return member?.display_name?.trim() || `Użytkownik ${assignment.user_id.slice(0, 8)}`;
+    });
+    const assignmentSummary = formatMemberNames(assignedNames);
 
     return (
       <View
@@ -480,66 +486,89 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                 >
                   {item.title}
                 </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${text.todoMoreActions}: ${item.title}`}
-                  accessibilityState={{ expanded: menuItemId === item.id }}
-                  testID={`todo-menu-${item.id}`}
-                  disabled={isPending}
-                  onPress={() => setMenuItemId((current) => (current === item.id ? null : item.id))}
-                  style={styles.moreButton}
-                >
-                  <Text style={[styles.moreButtonText, { color: colors.secondaryText }]}>⋮</Text>
-                </Pressable>
-              </View>
-              {item.due_date ? (
-                <Text
-                  testID={`todo-item-due-date-${item.id}`}
-                  style={[
-                    styles.dueDate,
-                    {
-                      color:
-                        !item.completed && item.due_date < today ? '#B42318' : colors.secondaryText,
-                    },
-                  ]}
-                >
-                  {text.todoDueDate(formatTodoDueDate(item.due_date, now))}
-                </Text>
-              ) : null}
-              <Text
-                testID={`todo-item-assignees-${item.id}`}
-                style={[styles.assignmentSummary, { color: colors.secondaryText }]}
-              >
-                {assignedNames ? text.todoAssignedTo(assignedNames) : text.todoNoAssignees}
-              </Text>
-              {menuItemId === item.id ? (
-                <View
-                  testID={`todo-menu-options-${item.id}`}
-                  style={[
-                    styles.menu,
-                    { backgroundColor: colors.background, borderColor: colors.border },
-                  ]}
-                >
+                <View style={styles.itemActions}>
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={text.todoEdit}
+                    accessibilityHint={text.todoEdit}
                     testID={`todo-edit-${item.id}`}
                     disabled={isPending}
                     onPress={() => beginEdit(item)}
-                    style={styles.menuButton}
+                    hitSlop={6}
+                    style={styles.iconButton}
                   >
-                    <Text style={[styles.link, { color: colors.text }]}>{text.todoEditShort}</Text>
+                    <SymbolView
+                      name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                      tintColor={colors.secondaryText}
+                      size={18}
+                    />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={text.todoDelete}
+                    accessibilityHint={text.todoDelete}
                     testID={`todo-delete-${item.id}`}
                     disabled={isPending}
                     onPress={() => confirmDelete(item)}
-                    style={styles.menuButton}
+                    hitSlop={6}
+                    style={styles.iconButton}
                   >
-                    <Text style={[styles.link, { color: '#B42318' }]}>{text.todoDelete}</Text>
+                    <SymbolView
+                      name={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
+                      tintColor="#B42318"
+                      size={18}
+                    />
                   </Pressable>
                 </View>
-              ) : null}
+              </View>
+              <View style={styles.itemMetadata}>
+                {item.due_date ? (
+                  <View style={styles.metadataItem}>
+                    <SymbolView
+                      name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
+                      tintColor={
+                        !item.completed && item.due_date < today
+                          ? '#B42318'
+                          : !item.completed && item.due_date === today
+                            ? '#B54708'
+                            : colors.secondaryText
+                      }
+                      size={14}
+                    />
+                    <Text
+                      testID={`todo-item-due-date-${item.id}`}
+                      style={[
+                        styles.dueDate,
+                        {
+                          color:
+                            !item.completed && item.due_date < today
+                              ? '#B42318'
+                              : !item.completed && item.due_date === today
+                                ? '#B54708'
+                                : colors.secondaryText,
+                        },
+                      ]}
+                    >
+                      {text.todoDueDate(formatTodoDueDate(item.due_date, now))}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={styles.metadataItem}>
+                  <SymbolView
+                    name={{ ios: 'person.2', android: 'group', web: 'group' }}
+                    tintColor={colors.secondaryText}
+                    size={14}
+                  />
+                  <Text
+                    testID={`todo-item-assignees-${item.id}`}
+                    style={[styles.assignmentSummary, { color: colors.secondaryText }]}
+                  >
+                    {assignmentSummary
+                      ? text.todoAssignedTo(assignmentSummary)
+                      : text.todoNoAssignees}
+                  </Text>
+                </View>
+              </View>
             </>
           )}
         </View>
@@ -659,41 +688,82 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         </Text>
       ) : (
         <>
-          {groupedItems.map((group) => (
-            <View key={group.key} testID={`todo-group-${group.key}`}>
+          <View
+            testID="todo-upcoming-panel"
+            style={[
+              styles.upcomingPanel,
+              { backgroundColor: colors.background, borderColor: colors.border },
+            ]}
+          >
+            <Text
+              accessibilityRole="header"
+              testID="todo-upcoming-count"
+              style={[styles.panelHeading, { color: colors.text }]}
+            >
+              {text.todoUpcoming} ({pendingItems.length})
+            </Text>
+            {pendingItems.length ? (
+              groupedItems.map((group) => (
+                <View key={group.key} testID={`todo-group-${group.key}`}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[
+                      styles.groupHeading,
+                      {
+                        color:
+                          group.key === 'overdue'
+                            ? '#B42318'
+                            : group.key === 'today'
+                              ? '#B54708'
+                              : colors.secondaryText,
+                      },
+                    ]}
+                  >
+                    {group.title} ({group.items.length})
+                  </Text>
+                  <View style={styles.items}>{group.items.map(renderItem)}</View>
+                </View>
+              ))
+            ) : (
+              <Text style={[styles.panelEmpty, { color: colors.secondaryText }]}>
+                {text.todoNoUpcoming}
+              </Text>
+            )}
+          </View>
+          <View
+            testID="todo-group-completed"
+            style={[
+              styles.completedPanel,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: completedExpanded }}
+              testID="todo-completed-toggle"
+              onPress={() => setCompletedExpanded((expanded) => !expanded)}
+              style={styles.completedToggle}
+            >
               <Text
                 accessibilityRole="header"
-                style={[
-                  styles.groupHeading,
-                  { color: group.key === 'overdue' ? '#B42318' : colors.secondaryText },
-                ]}
+                style={[styles.panelHeading, { color: colors.secondaryText }]}
               >
-                {group.title} ({group.items.length})
+                {text.todoCompletedSection} ({completedItems.length})
               </Text>
-              <View style={styles.items}>{group.items.map(renderItem)}</View>
-            </View>
-          ))}
-          {completedItems.length ? (
-            <View testID="todo-group-completed">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded: completedExpanded }}
-                testID="todo-completed-toggle"
-                onPress={() => setCompletedExpanded((expanded) => !expanded)}
-                style={styles.completedToggle}
-              >
-                <Text style={[styles.groupHeading, { color: colors.secondaryText }]}>
-                  {text.todoCompletedSection} ({completedItems.length})
-                </Text>
-                <Text style={[styles.completedArrow, { color: colors.secondaryText }]}>
-                  {completedExpanded ? '⌃' : '⌄'}
-                </Text>
-              </Pressable>
-              {completedExpanded ? (
+              <Text style={[styles.completedArrow, { color: colors.secondaryText }]}>
+                {completedExpanded ? '⌃' : '⌄'}
+              </Text>
+            </Pressable>
+            {completedExpanded ? (
+              completedItems.length ? (
                 <View style={styles.items}>{completedItems.map(renderItem)}</View>
-              ) : null}
-            </View>
-          ) : null}
+              ) : (
+                <Text style={[styles.panelEmpty, { color: colors.secondaryText }]}>
+                  {text.todoNoCompleted}
+                </Text>
+              )
+            ) : null}
+          </View>
         </>
       )}
     </View>
@@ -750,6 +820,22 @@ const styles = StyleSheet.create({
   message: { fontSize: 14, lineHeight: 21 },
   link: { fontSize: 14, fontWeight: '600' },
   items: { marginTop: -Spacing.one },
+  upcomingPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    marginBottom: Spacing.three,
+  },
+  completedPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    opacity: 0.82,
+  },
+  panelHeading: { fontSize: 14, fontWeight: '700' },
+  panelEmpty: { paddingVertical: Spacing.two, fontSize: 13 },
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -759,19 +845,18 @@ const styles = StyleSheet.create({
   check: { fontSize: 22 },
   itemContent: { flex: 1, minWidth: 0, paddingVertical: Spacing.two, gap: Spacing.one },
   itemTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  itemTitle: { flex: 1, fontSize: 15, fontWeight: '500' },
+  itemTitle: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: '500' },
+  itemMetadata: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
+  metadataItem: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%' },
   dueDate: { fontSize: 12, fontWeight: '600' },
-  assignmentSummary: { fontSize: 12 },
-  moreButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  moreButtonText: { fontSize: 22, fontWeight: '700' },
-  menu: { alignSelf: 'flex-end', borderWidth: 1, borderRadius: 10, flexDirection: 'row' },
-  menuButton: { minHeight: 38, paddingHorizontal: Spacing.two, justifyContent: 'center' },
-  itemActions: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },
+  assignmentSummary: { flexShrink: 1, fontSize: 12 },
+  itemActions: { flexDirection: 'row', alignItems: 'center' },
+  iconButton: { width: 38, height: 42, alignItems: 'center', justifyContent: 'center' },
   actionButton: { minHeight: 36, justifyContent: 'center' },
   groupHeading: {
     fontSize: 13,
     fontWeight: '700',
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
     marginBottom: Spacing.one,
   },
   completedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
