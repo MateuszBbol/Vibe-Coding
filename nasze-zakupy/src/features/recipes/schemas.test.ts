@@ -4,6 +4,7 @@ describe('recipe schema', () => {
   const validRecipe = {
     name: 'Naleśniki',
     description: '',
+    steps: [],
     items: [{ name: 'Mąka', quantity: '250', unit: 'g', category: 'groceries' }],
   };
 
@@ -29,5 +30,21 @@ describe('recipe schema', () => {
         items: [{ ...validRecipe.items[0], name: ' ' }],
       }).success,
     ).toBe(false);
+  });
+
+  it('trims preparation steps, removes empty steps, and preserves their order', () => {
+    expect(
+      recipeSchema.parse({
+        ...validRecipe,
+        steps: [{ text: '  Przygotuj warzywa.  ' }, { text: '   ' }, { text: 'Gotuj.' }],
+      }).steps,
+    ).toEqual([
+      { text: 'Przygotuj warzywa.', sort_order: 0 },
+      { text: 'Gotuj.', sort_order: 1 },
+    ]);
+  });
+
+  it('accepts a recipe without preparation steps', () => {
+    expect(recipeSchema.parse(validRecipe).steps).toEqual([]);
   });
 });

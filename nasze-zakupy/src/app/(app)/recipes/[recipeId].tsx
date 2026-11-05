@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -37,6 +37,7 @@ export default function RecipeDetailsRoute() {
   const text = strings.pl.recipes;
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const addRequestPending = useRef(false);
   const recipeQuery = useQuery({
     queryKey: recipeQueryKeys.detail(householdId ?? '', recipeId ?? ''),
     queryFn: () => fetchRecipe(householdId ?? '', recipeId ?? ''),
@@ -89,6 +90,11 @@ export default function RecipeDetailsRoute() {
         });
         void queryClient.invalidateQueries({ queryKey: recipeQueryKeys.list(householdId) });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_steps' }, () => {
+        void queryClient.invalidateQueries({
+          queryKey: recipeQueryKeys.detail(householdId, recipeId),
+        });
+      })
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           logFeatureError('[realtime] recipe detail subscription failed', status, {
@@ -110,8 +116,11 @@ export default function RecipeDetailsRoute() {
     mutationFn: () => addRecipeToActiveList(recipeId ?? ''),
     onSuccess: async (result) => {
       setActionError(null);
-      setSuccessMessage(text.addAllSuccess(result.itemsAdded));
+      setSuccessMessage(text.addAllSuccess);
       await queryClient.invalidateQueries({ queryKey: ['shopping-items', result.listId] });
+    },
+    onSettled: () => {
+      addRequestPending.current = false;
     },
     onError: (error: unknown) => {
       logFeatureError('[recipes] add ingredients to shopping list failed', error, {
@@ -144,18 +153,25 @@ export default function RecipeDetailsRoute() {
       message: text.addAllConfirmMessage(recipe.items.length, list.name),
       cancelLabel: strings.pl.auth.cancel,
       confirmLabel: text.addAll,
-      onConfirm: () => addMutation.mutate(),
+      onConfirm: () => {
+        if (addRequestPending.current || addMutation.isPending) {
+          return;
+        }
+        addRequestPending.current = true;
+        setActionError(null);
+        setSuccessMessage(null);
+        addMutation.mutate();
+      },
     });
   };
   const confirmDelete = () =>
-    Alert.alert(text.deleteConfirmTitle, text.deleteConfirmMessage, [
-      { text: strings.pl.auth.cancel, style: 'cancel' },
-      {
-        text: text.delete,
-        style: 'destructive',
-        onPress: () => deleteMutation.mutate(),
-      },
-    ]);
+    confirmRecipeAction({
+      title: text.deleteConfirmTitle,
+      message: text.deleteConfirmMessage,
+      cancelLabel: strings.pl.auth.cancel,
+      confirmLabel: text.delete,
+      onConfirm: () => deleteMutation.mutate(),
+    });
 
   return (
     <RecipeFrame
@@ -178,9 +194,28 @@ export default function RecipeDetailsRoute() {
       ) : (
         <>
           {recipeQuery.data.description ? (
-            <Text style={[styles.description, { color: colors.secondaryText }]}>
+            <Text
+              testID="recipe-description"
+              style={[styles.description, { color: colors.secondaryText }]}
+            >
               {recipeQuery.data.description}
             </Text>
+          ) : null}
+          {recipeQuery.data.steps.length > 0 ? (
+            <RecipeCard testID="recipe-preparation-steps">
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {text.preparationTitle}
+              </Text>
+              {recipeQuery.data.steps.map((step, index) => (
+                <Text
+                  key={step.id}
+                  testID={`recipe-preparation-step-${index}`}
+                  style={[styles.preparationStep, { color: colors.text }]}
+                >
+                  {index + 1}. {step.text}
+                </Text>
+              ))}
+            </RecipeCard>
           ) : null}
           <RecipeCard testID={`recipe-ingredients-${recipeId}`}>
             {recipeQuery.data.items.map((item) => (
@@ -259,6 +294,8 @@ export default function RecipeDetailsRoute() {
 
 const styles = StyleSheet.create({
   description: { fontSize: 15, lineHeight: 22 },
+  sectionTitle: { fontSize: 17, fontWeight: '700' },
+  preparationStep: { fontSize: 15, lineHeight: 22 },
   ingredient: {
     minHeight: 52,
     flexDirection: 'row',

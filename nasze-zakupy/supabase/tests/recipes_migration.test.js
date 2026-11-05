@@ -6,6 +6,11 @@ const migration = readFileSync(
   'utf8',
 ).toLowerCase();
 const schema = migration.replace(/\s+/g, '');
+const stepsAndDeduplication = readFileSync(
+  resolve(__dirname, '../migrations/202611050001_recipe_steps_and_deduplicate_shopping_items.sql'),
+  'utf8',
+).toLowerCase();
+const stepsSchema = stepsAndDeduplication.replace(/\s+/g, '');
 
 describe('recipes migration security and atomic operation contract', () => {
   it('creates household-scoped recipe tables with cascading foreign keys', () => {
@@ -62,6 +67,39 @@ describe('recipes migration security and atomic operation contract', () => {
     expect(initialRecipeRead).toBeGreaterThan(addFunction);
     expect(householdLock).toBeGreaterThan(initialRecipeRead);
     expect(lockedRecipeRead).toBeGreaterThan(householdLock);
+  });
+
+  it('stores ordered preparation steps with recipe cascade and household-scoped reads', () => {
+    expect(stepsAndDeduplication).toContain('create table if not exists public.recipe_steps');
+    expect(stepsSchema).toContain('recipe_iduuidnotnullreferencespublic.recipes(id)ondeletecascade');
+    expect(stepsSchema).toContain('constraintrecipe_steps_recipe_sort_order_uniqueunique(recipe_id,sort_order)');
+    expect(stepsAndDeduplication).toContain('alter table public.recipe_steps enable row level security');
+    expect(stepsAndDeduplication).toContain('grant select on public.recipe_steps to authenticated');
+    expect(stepsAndDeduplication).toContain('public.is_household_member(recipe.household_id)');
+    expect(stepsAndDeduplication).toContain('public.save_recipe_with_steps');
+    expect(stepsAndDeduplication).toContain('jsonb_array_elements(target_steps) with ordinality');
+    expect(stepsAndDeduplication).toContain('alter publication supabase_realtime add table public.recipe_steps');
+  });
+
+  it('merges matching active-list products and avoids unsafe quantity or unit changes', () => {
+    const addFunction = stepsAndDeduplication.slice(
+      stepsAndDeduplication.indexOf(
+        'create or replace function public.add_recipe_to_active_shopping_list',
+      ),
+      stepsAndDeduplication.indexOf(
+        'revoke all on function public.add_recipe_to_active_shopping_list',
+      ),
+    );
+    const compactFunction = addFunction.replace(/\s+/g, ' ');
+
+    expect(compactFunction).toContain('pg_catalog.pg_advisory_xact_lock');
+    expect(compactFunction).toContain('public.ensure_active_shopping_list(target_household_id)');
+    expect(compactFunction).toContain('shopping_item.list_id = target_list_id');
+    expect(compactFunction).toContain('shopping_item.deleted_at is null');
+    expect(compactFunction).toContain("'[[:space:]]+', ' ', 'g'");
+    expect(compactFunction).toContain('existing_item.unit is not distinct from recipe_item.unit');
+    expect(compactFunction).toContain('existing_item.quantity + recipe_item.quantity');
+    expect(compactFunction).toContain('if not found then');
   });
 
   it('copies every recipe ingredient and preserves its fields on that household active list', () => {

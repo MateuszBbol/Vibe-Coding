@@ -22,10 +22,20 @@ export type Recipe = {
   items_count: number;
 };
 
-export type RecipeDetails = Omit<Recipe, 'items_count'> & { items: RecipeItem[] };
+export type RecipeStep = {
+  id: string;
+  recipe_id: string;
+  text: string;
+  sort_order: number;
+};
+export type RecipeDetails = Omit<Recipe, 'items_count'> & {
+  items: RecipeItem[];
+  steps: RecipeStep[];
+};
 export type RecipeSaveValues = {
   name: string;
   description: string;
+  steps: { text: string; sort_order: number }[];
   items: Omit<RecipeItem, 'id' | 'recipe_id'>[];
 };
 
@@ -100,7 +110,17 @@ export async function fetchRecipe(
   if (itemsError) {
     throw itemsError;
   }
-  return { ...recipe, items: items ?? [] };
+
+  const { data: steps, error: stepsError } = await client
+    .from('recipe_steps')
+    .select('id, recipe_id, text, sort_order')
+    .eq('recipe_id', recipeId)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+  if (stepsError) {
+    throw stepsError;
+  }
+  return { ...recipe, items: items ?? [], steps: steps ?? [] };
 }
 
 export async function saveRecipe(
@@ -109,12 +129,13 @@ export async function saveRecipe(
   values: RecipeSaveValues,
 ): Promise<string> {
   const client = requireSupabase();
-  const { data, error } = await client.rpc('save_recipe', {
+  const { data, error } = await client.rpc('save_recipe_with_steps', {
     target_household_id: householdId,
     target_recipe_id: recipeId,
     target_name: values.name,
     target_description: values.description || null,
     target_items: values.items,
+    target_steps: values.steps,
   });
   if (error) {
     throw error;

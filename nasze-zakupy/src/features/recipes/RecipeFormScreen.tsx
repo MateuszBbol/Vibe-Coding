@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import type { Control, FieldErrors, UseFormSetValue } from 'react-hook-form';
 import {
@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
-import { getShoppingCategory } from '@/features/shopping/categories';
+import { getShoppingCategory, shoppingCategories } from '@/features/shopping/categories';
 import { classifyShoppingProduct } from '@/features/shopping/productCategories';
 import { shoppingUnits } from '@/features/shopping/schemas';
 import type { ShoppingUnit } from '@/features/shopping/schemas';
@@ -41,6 +41,7 @@ type RecipeFormScreenProps = {
 const initialForm: RecipeFormInput = {
   name: '',
   description: '',
+  steps: [],
   items: [{ name: '', quantity: '', unit: null, category: 'other' }],
 };
 
@@ -63,6 +64,12 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
     defaultValues: initialForm,
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' });
+  const {
+    fields: stepFields,
+    append: appendStep,
+    move: moveStep,
+    remove: removeStep,
+  } = useFieldArray({ control: form.control, name: 'steps' });
   const mutation = useMutation({
     mutationFn: (values: RecipeFormValues) =>
       saveRecipe(householdId ?? '', activeRecipeId ?? null, {
@@ -105,6 +112,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
     form.reset({
       name: recipe.name,
       description: recipe.description ?? '',
+      steps: recipe.steps.map(({ text }) => ({ text })),
       items: recipe.items.map((item) => ({
         name: item.name,
         quantity: item.quantity === null ? '' : String(item.quantity),
@@ -209,11 +217,91 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
             ) : null}
           </RecipeCard>
 
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{text.preparationTitle}</Text>
+          {stepFields.map((field, index) => (
+            <RecipeCard key={field.id} testID={`recipe-step-${index}`}>
+              <View style={styles.stepHeader}>
+                <Text style={[styles.label, { color: colors.text }]}>{index + 1}.</Text>
+                <View style={styles.stepActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={text.moveStepUp}
+                    testID={`recipe-step-${index}-move-up-button`}
+                    disabled={mutation.isPending || index === 0}
+                    onPress={() => moveStep(index, index - 1)}
+                  >
+                    <Text style={[styles.remove, { color: colors.text }]}>↑</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={text.moveStepDown}
+                    testID={`recipe-step-${index}-move-down-button`}
+                    disabled={mutation.isPending || index === stepFields.length - 1}
+                    onPress={() => moveStep(index, index + 1)}
+                  >
+                    <Text style={[styles.remove, { color: colors.text }]}>↓</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    testID={`recipe-step-${index}-remove-button`}
+                    disabled={mutation.isPending}
+                    onPress={() => removeStep(index)}
+                  >
+                    <Text style={[styles.remove, { color: '#B42318' }]}>{text.removeStep}</Text>
+                  </Pressable>
+                </View>
+              </View>
+              <Controller
+                control={form.control}
+                name={`steps.${index}.text`}
+                render={({ field: { onBlur, onChange, value } }) => (
+                  <TextInput
+                    accessibilityLabel={`${text.preparationStep} ${index + 1}`}
+                    testID={`recipe-step-${index}-input`}
+                    editable={!mutation.isPending}
+                    maxLength={500}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder={text.preparationStepPlaceholder}
+                    placeholderTextColor={colors.secondaryText}
+                    value={value}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        color: colors.text,
+                      },
+                    ]}
+                  />
+                )}
+              />
+              {form.formState.errors.steps?.[index]?.text?.message ? (
+                <RecipeError testID={`recipe-step-${index}-error-message`}>
+                  {form.formState.errors.steps[index]?.text?.message}
+                </RecipeError>
+              ) : null}
+            </RecipeCard>
+          ))}
+          {form.formState.errors.steps?.message ? (
+            <RecipeError testID="recipe-steps-error-message">
+              {form.formState.errors.steps.message}
+            </RecipeError>
+          ) : null}
+          <RecipeButton
+            secondary
+            disabled={mutation.isPending || stepFields.length >= 50}
+            label={text.addStep}
+            testID="recipe-add-step-button"
+            onPress={() => appendStep({ text: '' })}
+          />
+
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{text.ingredients}</Text>
           {fields.map((field, index) => (
             <RecipeIngredientForm
               key={field.id}
               testID={`recipe-ingredient-${field.id}`}
+              indexTestID={`recipe-ingredient-category-select-${index}`}
               index={index}
               control={form.control}
               remove={() => remove(index)}
@@ -254,6 +342,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
 
 type IngredientFormProps = {
   testID: string;
+  indexTestID: string;
   index: number;
   control: Control<RecipeFormInput, unknown, RecipeFormValues>;
   remove: () => void;
@@ -265,6 +354,7 @@ type IngredientFormProps = {
 
 function RecipeIngredientForm({
   testID,
+  indexTestID,
   index,
   control,
   remove,
@@ -273,6 +363,8 @@ function RecipeIngredientForm({
   setValue,
   errors,
 }: IngredientFormProps) {
+  const [categoryOptionsVisible, setCategoryOptionsVisible] = useState(false);
+  const categoryManuallyOverridden = useRef(false);
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   const text = strings.pl.recipes;
@@ -306,9 +398,11 @@ function RecipeIngredientForm({
             onBlur={onBlur}
             onChangeText={(name) => {
               onChange(name);
-              setValue(`items.${index}.category`, classifyShoppingProduct(name), {
-                shouldValidate: true,
-              });
+              if (!categoryManuallyOverridden.current) {
+                setValue(`items.${index}.category`, classifyShoppingProduct(name), {
+                  shouldValidate: true,
+                });
+              }
             }}
             placeholder={text.productPlaceholder}
             placeholderTextColor={colors.secondaryText}
@@ -394,12 +488,56 @@ function RecipeIngredientForm({
       <Controller
         control={control}
         name={`items.${index}.category`}
-        render={({ field: { value } }) => {
+        render={({ field: { onChange, value } }) => {
           const category = getShoppingCategory(value);
           return (
-            <Text style={[styles.category, { color: colors.secondaryText }]}>
-              {category.emoji} {category.label}
-            </Text>
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: categoryOptionsVisible, disabled }}
+                testID={indexTestID}
+                disabled={disabled}
+                onPress={() => setCategoryOptionsVisible((visible) => !visible)}
+                style={[
+                  styles.categorySelector,
+                  { backgroundColor: colors.background, borderColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.category, { color: colors.text }]}>
+                  {category.emoji} {category.label}
+                </Text>
+              </Pressable>
+              {categoryOptionsVisible ? (
+                <View style={styles.categoryOptions}>
+                  {shoppingCategories.map((option) => (
+                    <Pressable
+                      key={option.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: option.id === value, disabled }}
+                      testID={`${indexTestID}-option-${option.id}`}
+                      disabled={disabled}
+                      onPress={() => {
+                        categoryManuallyOverridden.current = true;
+                        onChange(option.id);
+                        setCategoryOptionsVisible(false);
+                      }}
+                      style={[
+                        styles.unitOption,
+                        {
+                          backgroundColor:
+                            option.id === value ? colors.accentSoft : colors.background,
+                          borderColor: option.id === value ? colors.accent : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: colors.text }}>
+                        {option.emoji} {option.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </>
           );
         }}
       />
@@ -428,4 +566,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   category: { fontSize: 15, paddingVertical: Spacing.two },
+  categorySelector: { borderWidth: 1, borderRadius: 10, paddingHorizontal: Spacing.two },
+  categoryOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, marginTop: Spacing.one },
+  stepHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stepActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

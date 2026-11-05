@@ -38,15 +38,17 @@ describe('recipe data RPCs', () => {
           sort_order: 0,
         },
       ],
+      steps: [{ text: 'Przygotuj składniki.', sort_order: 0 }],
     };
 
     await expect(saveRecipe('household-1', null, values)).resolves.toBe('recipe-1');
-    expect(mockRpc).toHaveBeenCalledWith('save_recipe', {
+    expect(mockRpc).toHaveBeenCalledWith('save_recipe_with_steps', {
       target_household_id: 'household-1',
       target_recipe_id: null,
       target_name: 'Naleśniki',
       target_description: null,
       target_items: values.items,
+      target_steps: values.steps,
     });
   });
 

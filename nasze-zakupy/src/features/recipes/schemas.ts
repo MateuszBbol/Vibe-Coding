@@ -26,6 +26,14 @@ export const recipeItemSchema = z.object({
 export const recipeSchema = z.object({
   name: z.string().trim().min(1, 'Wpisz nazwę przepisu.').max(120),
   description: z.string().trim().max(2000, 'Opis może mieć maksymalnie 2000 znaków.'),
+  steps: z
+    .array(z.object({ text: z.string().trim().max(500, 'Punkt może mieć maksymalnie 500 znaków.') }))
+    .max(50, 'Możesz dodać maksymalnie 50 punktów.')
+    .transform((steps) =>
+      steps
+        .filter((step) => step.text.length > 0)
+        .map((step, sort_order) => ({ ...step, sort_order })),
+    ),
   items: z.array(recipeItemSchema).min(1, 'Dodaj co najmniej jeden składnik.').max(100),
 });
 
