@@ -227,8 +227,20 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
       setActionError(null);
       await refreshItems();
     },
-    onError: (error: unknown) => {
+    onError: async (error: unknown) => {
       logFeatureError('[todo] update failed', error, { userId, householdId });
+      const errorText =
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string'
+          ? error.message.toLowerCase()
+          : '';
+      if (errorText.includes('changed by another user')) {
+        await refreshItems();
+        setActionError(text.itemChangedConflict);
+        return;
+      }
       setActionError(getFeatureErrorMessage(error));
     },
   });

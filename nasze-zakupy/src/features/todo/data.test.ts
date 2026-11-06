@@ -132,6 +132,7 @@ describe('todo data operations', () => {
       target_due_date: '2026-11-12',
       target_completed: true,
       target_user_ids: ['user-2'],
+      target_expected_updated_at: '2026-11-05T00:00:00.000Z',
     });
 
     const backendError = new Error('RPC failed');

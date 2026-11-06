@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -24,7 +24,6 @@ import {
   addShoppingItem,
   createShoppingList,
   deleteShoppingItem,
-  deletePurchasedShoppingItems,
   fetchShoppingItems,
   setShoppingItemPurchased,
   updateShoppingItem,
@@ -60,6 +59,16 @@ type ShoppingHomeProps = {
   onSignOut: () => void;
   isSigningOut: boolean;
   signOutError: string | null;
+};
+
+// How long a deleted item can be restored before the delete is sent to the server.
+const UNDO_DELETE_MS = 5000;
+
+type PendingDelete = {
+  listId: string;
+  ids: string[];
+  message: string;
+  timer: ReturnType<typeof setTimeout>;
 };
 
 type RealtimeEventPayload = {
@@ -115,6 +124,10 @@ export function ShoppingHome({
   const [editCategoryOptionsOpen, setEditCategoryOptionsOpen] = useState(false);
   const channelSequence = useRef(0);
   const categoryManuallyOverridden = useRef(false);
+  const pendingDeleteRef = useRef<PendingDelete | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; message: string } | null>(
+    null,
+  );
   const {
     control,
     getValues,
@@ -181,9 +194,11 @@ export function ShoppingHome({
   const updateMutation = useMutation({
     mutationFn: ({
       itemId,
+      expectedUpdatedAt,
       values,
     }: {
       itemId: string;
+      expectedUpdatedAt: string;
       values: {
         name: string;
         quantity: number | null;
@@ -201,6 +216,7 @@ export function ShoppingHome({
         values.quantity,
         values.unit,
         values.category,
+        expectedUpdatedAt,
       );
     },
     onSuccess: async () => {
@@ -214,7 +230,7 @@ export function ShoppingHome({
       setActionError(null);
       await refreshItems();
     },
-    onError: (error: unknown) => {
+    onError: async (error: unknown) => {
       logFeatureError('[shopping item] update failed', error, {
         userId,
         householdId: household.id,
@@ -227,9 +243,15 @@ export function ShoppingHome({
         typeof error.message === 'string'
           ? error.message.toLowerCase()
           : '';
+      if (errorText.includes('changed by another user')) {
+        // Someone else saved first: reload so the next attempt uses the current version.
+        await refreshItems();
+      }
       const message = errorText.includes('cannot be safely merged')
         ? text.itemMergeConflict
-        : getFeatureErrorMessage(error);
+        : errorText.includes('changed by another user')
+          ? text.itemChangedConflict
+          : getFeatureErrorMessage(error);
       setActionError(message);
     },
   });
@@ -249,43 +271,65 @@ export function ShoppingHome({
       setActionError(getFeatureErrorMessage(error));
     },
   });
-  const deletePurchasedMutation = useMutation({
-    mutationFn: () => {
-      if (!listId) {
-        throw new Error('Najpierw utwórz listę zakupową.');
-      }
-      return deletePurchasedShoppingItems(listId);
-    },
-    onSuccess: async () => {
-      setActionError(null);
-      await refreshItems();
-    },
-    onError: (error: unknown) => {
-      logFeatureError('[shopping item] delete purchased failed', error);
-      setActionError(getFeatureErrorMessage(error));
-    },
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (itemId: string) => {
-      if (!listId) {
-        throw new Error('Najpierw utwórz listę zakupową.');
-      }
-      return deleteShoppingItem(listId, itemId);
-    },
-    onSuccess: async () => {
-      setEditingItemId(null);
-      setActionError(null);
-      await refreshItems();
-    },
-    onError: (error: unknown) => {
-      logFeatureError('[shopping item] delete failed', error, {
+  // Deletes are applied after a short undo window. Until then the ids are hidden
+  // locally and nothing is sent to the server, so "Cofnij" is a plain local cancel.
+  const commitPendingDelete = useCallback(async () => {
+    const pending = pendingDeleteRef.current;
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timer);
+    pendingDeleteRef.current = null;
+    setPendingDelete(null);
+
+    const results = await Promise.allSettled(
+      pending.ids.map((itemId) => deleteShoppingItem(pending.listId, itemId)),
+    );
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failure) {
+      logFeatureError('[shopping item] delete failed', failure.reason, {
         userId,
         householdId: household.id,
-        listId,
+        listId: pending.listId,
       });
-      setActionError(getFeatureErrorMessage(error));
-    },
-  });
+      setActionError(getFeatureErrorMessage(failure.reason));
+    }
+    await queryClient.invalidateQueries({ queryKey: ['shopping-items', pending.listId] });
+  }, [household.id, queryClient, userId]);
+
+  const scheduleDelete = (ids: string[], message: string) => {
+    if (!listId || ids.length === 0) {
+      return;
+    }
+    // A previous undo window closes now, so only one pending delete exists at a time.
+    void commitPendingDelete();
+    setActionError(null);
+    if (editingItemId && ids.includes(editingItemId)) {
+      setEditingItemId(null);
+    }
+    const timer = setTimeout(() => void commitPendingDelete(), UNDO_DELETE_MS);
+    pendingDeleteRef.current = { listId, ids, message, timer };
+    setPendingDelete({ ids, message });
+  };
+
+  const undoDelete = () => {
+    const pending = pendingDeleteRef.current;
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timer);
+    pendingDeleteRef.current = null;
+    setPendingDelete(null);
+  };
+
+  // Leaving the screen must not drop a pending delete: send it now.
+  useEffect(() => {
+    return () => {
+      void commitPendingDelete();
+    };
+  }, [commitPendingDelete]);
   const createListMutation = useMutation({
     mutationFn: () => createShoppingList(household.id),
     onSuccess: async (createdList) => {
@@ -456,10 +500,11 @@ export function ShoppingHome({
     setEditCategoryOptionsOpen(false);
     setActionError(null);
   };
-  const saveItemEdit = (itemId: string) => {
+  const saveItemEdit = (item: ShoppingItem) => {
+    // Quantity is required when editing, as it is when adding.
     const parsed = shoppingItemSchema.safeParse({
       name: editName,
-      quantity: editQuantity.trim() || '1',
+      quantity: editQuantity,
       unit: editUnit,
       category: editCategory,
     });
@@ -470,21 +515,20 @@ export function ShoppingHome({
 
     setActionError(null);
     updateMutation.mutate({
-      itemId,
-      values: {
-        ...parsed.data,
-        quantity: editQuantity.trim() ? parsed.data.quantity : null,
-      },
+      itemId: item.id,
+      expectedUpdatedAt: item.updated_at,
+      values: parsed.data,
     });
   };
-  const items = itemsQuery.data ?? [];
+  // Items waiting in the undo window stay hidden even if a refetch returns them.
+  const hiddenItemIds = new Set(pendingDelete?.ids ?? []);
+  const items = (itemsQuery.data ?? []).filter((item) => !hiddenItemIds.has(item.id));
   const itemsToBuy = groupUnpurchasedItems(items);
   const purchasedItems = items.filter((item) => item.is_purchased);
 
   const renderItem = (item: ShoppingItem) => {
     const isEditing = editingItemId === item.id;
-    const isItemActionPending =
-      updateMutation.isPending || deleteMutation.isPending || toggleMutation.isPending;
+    const isItemActionPending = updateMutation.isPending || toggleMutation.isPending;
 
     return (
       <View
@@ -643,7 +687,7 @@ export function ShoppingHome({
                 accessibilityLabel={text.saveItem}
                 testID={`shopping-edit-save-${item.id}`}
                 disabled={updateMutation.isPending}
-                onPress={() => saveItemEdit(item.id)}
+                onPress={() => saveItemEdit(item)}
                 style={styles.itemActionButton}
               >
                 <Text style={[styles.editActionText, { color: colors.accent }]}>
@@ -713,7 +757,7 @@ export function ShoppingHome({
             accessibilityState={{ disabled: isItemActionPending }}
             testID={`shopping-item-delete-${item.id}`}
             disabled={isItemActionPending}
-            onPress={() => deleteMutation.mutate(item.id)}
+            onPress={() => scheduleDelete([item.id], text.undoDeleted(item.name))}
             hitSlop={6}
             style={styles.itemActionButton}
           >
@@ -800,8 +844,7 @@ export function ShoppingHome({
             { color: activeTab === 'shopping' ? colors.background : colors.text },
           ]}
         >
-          🛒 {strings.pl.shopping.shoppingTab} (
-          {itemsQuery.data?.filter((item) => !item.is_purchased).length ?? 0})
+          🛒 {strings.pl.shopping.shoppingTab} ({items.filter((item) => !item.is_purchased).length})
         </Text>
       </Pressable>
       <Pressable
@@ -1341,22 +1384,20 @@ export function ShoppingHome({
                   </Text>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{ disabled: deletePurchasedMutation.isPending }}
                     testID="shopping-clear-completed-button"
-                    disabled={deletePurchasedMutation.isPending}
-                    onPress={() => {
-                      setActionError(null);
-                      deletePurchasedMutation.mutate();
-                    }}
+                    onPress={() =>
+                      scheduleDelete(
+                        purchasedItems.map((item) => item.id),
+                        text.undoDeletedPurchased(purchasedItems.length),
+                      )
+                    }
                     style={({ pressed }) => [
                       styles.deletePurchasedButton,
-                      { opacity: pressed || deletePurchasedMutation.isPending ? 0.6 : 1 },
+                      { opacity: pressed ? 0.6 : 1 },
                     ]}
                   >
                     <Text style={[styles.deletePurchasedText, { color: colors.accent }]}>
-                      {deletePurchasedMutation.isPending
-                        ? text.deletingPurchased
-                        : text.deletePurchased}
+                      {text.deletePurchased}
                     </Text>
                   </Pressable>
                   <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
@@ -1384,6 +1425,25 @@ export function ShoppingHome({
           </Text>
         ) : null}
       </ScrollView>
+      {pendingDelete ? (
+        <View
+          accessibilityLiveRegion="polite"
+          testID="shopping-undo-bar"
+          style={[styles.undoBar, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text numberOfLines={1} style={[styles.undoText, { color: colors.text }]}>
+            {pendingDelete.message}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            testID="shopping-undo-delete-button"
+            onPress={undoDelete}
+            hitSlop={8}
+          >
+            <Text style={[styles.undoAction, { color: colors.accent }]}>{text.undoAction}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1391,6 +1451,28 @@ export function ShoppingHome({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  undoBar: {
+    position: 'absolute',
+    left: Spacing.four,
+    right: Spacing.four,
+    bottom: Spacing.four,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  undoText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  undoAction: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   content: {
     flexGrow: 1,

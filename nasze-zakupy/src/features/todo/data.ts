@@ -136,6 +136,7 @@ export async function updateTodoItem(
       values.dueDate === undefined ? item.due_date : normalizeTodoDueDate(values.dueDate),
     target_completed: values.completed ?? item.completed,
     target_user_ids: values.assigneeIds ?? item.assignees.map(({ user_id }) => user_id),
+    target_expected_updated_at: item.updated_at,
   });
   throwOnError(error);
 }

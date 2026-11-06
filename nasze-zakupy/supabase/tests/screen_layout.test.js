@@ -131,7 +131,7 @@ describe('screen layout contract', () => {
   });
 
   it('provides direct product edit and delete actions with compact product rows', () => {
-    expect(shopping).toContain('onPress={() => deleteMutation.mutate(item.id)}');
+    expect(shopping).toContain('onPress={() => scheduleDelete([item.id], text.undoDeleted(item.name))}');
     expect(shopping).toContain("ios: 'trash', android: 'delete_outline', web: 'delete_outline'");
     expect(shopping).toContain('testID={`shopping-item-edit-${item.id}`}');
     expect(shopping).toContain('accessibilityLabel={text.editItem}');

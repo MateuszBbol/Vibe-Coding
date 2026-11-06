@@ -16,6 +16,7 @@ export type ShoppingItem = {
   category: ShoppingCategoryId | null;
   is_purchased: boolean;
   created_at: string;
+  updated_at: string;
 };
 
 function requireSupabase() {
@@ -76,7 +77,7 @@ export async function fetchShoppingItems(listId: string): Promise<ShoppingItem[]
   const client = requireSupabase();
   const { data, error } = await client
     .from('shopping_items')
-    .select('id, list_id, name, quantity, unit, category, is_purchased, created_at')
+    .select('id, list_id, name, quantity, unit, category, is_purchased, created_at, updated_at')
     .eq('list_id', listId)
     .is('deleted_at', null)
     .order('is_purchased', { ascending: true })
@@ -119,6 +120,7 @@ export async function updateShoppingItem(
   quantity: number | null,
   unit: ShoppingUnit | null,
   category: ShoppingCategoryId | null,
+  expectedUpdatedAt: string,
 ): Promise<void> {
   const { error } = await requireSupabase().rpc('update_shopping_item', {
     target_list_id: listId,
@@ -127,6 +129,7 @@ export async function updateShoppingItem(
     target_quantity: quantity,
     target_unit: unit,
     target_category: category,
+    target_expected_updated_at: expectedUpdatedAt,
   });
   if (error) {
     throw error;

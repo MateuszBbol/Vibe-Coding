@@ -127,7 +127,15 @@ describe('shopping data operations', () => {
 
   it('updates an existing shopping item through the safe merge RPC', async () => {
     mockRpc.mockResolvedValueOnce({ data: null, error: null });
-    await updateShoppingItem('active-list-id', 'item-id', '  Mleko  ', 3, 'l', 'dairy');
+    await updateShoppingItem(
+      'active-list-id',
+      'item-id',
+      '  Mleko  ',
+      3,
+      'l',
+      'dairy',
+      '2026-11-05T00:00:00.000Z',
+    );
 
     expect(mockRpc).toHaveBeenCalledWith('update_shopping_item', {
       target_list_id: 'active-list-id',
@@ -136,11 +144,20 @@ describe('shopping data operations', () => {
       target_quantity: 3,
       target_unit: 'l',
       target_category: 'dairy',
+      target_expected_updated_at: '2026-11-05T00:00:00.000Z',
     });
 
     mockRpc.mockResolvedValueOnce({ data: null, error: new Error('RPC failed') });
     await expect(
-      updateShoppingItem('active-list-id', 'item-id', 'Mleko', null, null, null),
+      updateShoppingItem(
+        'active-list-id',
+        'item-id',
+        'Mleko',
+        null,
+        null,
+        null,
+        '2026-11-05T00:00:00.000Z',
+      ),
     ).rejects.toThrow('RPC failed');
   });
 });

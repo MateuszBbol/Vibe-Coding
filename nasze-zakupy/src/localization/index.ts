@@ -161,6 +161,11 @@ export const strings = {
       saveItem: 'Zapisz zmiany',
       cancelItemEdit: 'Anuluj',
       itemMergeConflict: 'Nie można bezpiecznie scalić produktu z pozycją o tej samej nazwie.',
+      itemChangedConflict:
+        'Produkt został zmieniony przez inną osobę. Lista została odświeżona, spróbuj ponownie.',
+      undoDeleted: (name: string) => `Usunięto: ${name}`,
+      undoDeletedPurchased: (count: number) => `Usunięto kupione produkty: ${count}`,
+      undoAction: 'Cofnij',
       signOut: 'Wyloguj się',
       inviteTitle: 'Udostępnianie listy',
       loading: 'Wczytywanie listy…',
@@ -445,6 +450,11 @@ export const strings = {
       saveItem: 'Save changes',
       cancelItemEdit: 'Cancel',
       itemMergeConflict: 'This product cannot be safely merged with an item of the same name.',
+      itemChangedConflict:
+        'This item was changed by someone else. The list was refreshed; try again.',
+      undoDeleted: (name: string) => `Deleted: ${name}`,
+      undoDeletedPurchased: (count: number) => `Deleted purchased items: ${count}`,
+      undoAction: 'Undo',
       signOut: 'Sign out',
       inviteTitle: 'Share the list',
       loading: 'Loading list…',

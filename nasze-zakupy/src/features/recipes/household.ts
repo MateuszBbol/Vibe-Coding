@@ -12,9 +12,9 @@ async function findAccessibleHousehold(
   requestedHouseholdId: string | undefined,
 ): Promise<Household | null> {
   const households = await fetchUserHouseholds(userId);
-  const requested = households.find(({ id }) => id === requestedHouseholdId);
-  if (requested) {
-    return requested;
+  if (requestedHouseholdId) {
+    // Explicit household in the URL: never silently switch to another household.
+    return households.find(({ id }) => id === requestedHouseholdId) ?? null;
   }
 
   let savedHouseholdId: string | null = null;
