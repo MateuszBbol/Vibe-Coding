@@ -55,9 +55,9 @@ export default function HouseholdInvitationsRoute() {
     await queryClient.invalidateQueries({
       queryKey: householdQueryKeys.memberships(userId ?? ''),
     });
-    // The new list is now active: open its shopping section and clear the setup screens.
+    // The new group is now active: open its default section and clear the setup screens.
     router.dismissAll();
-    router.replace(appSectionHrefs.shopping);
+    router.replace(appSectionHrefs.todo);
   };
 
   return (

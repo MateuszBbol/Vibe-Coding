@@ -111,12 +111,13 @@ export function ShoppingHome({
   );
   const [realtimeAttempt, setRealtimeAttempt] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
-  // The section lives in the URL (/home?section=todo) so refresh and direct links keep it.
+  // The section lives in the URL so refresh and direct links keep it. Tasks are the
+  // default; shopping is /home?section=shopping.
   const params = useLocalSearchParams<{ section?: string | string[] }>();
   const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
-  const activeTab: HomeSection = sectionParam === 'todo' ? 'todo' : 'shopping';
+  const activeTab: HomeSection = sectionParam === 'shopping' ? 'shopping' : 'todo';
   const selectSection = (section: HomeSection) => {
-    router.setParams({ section: section === 'todo' ? 'todo' : undefined });
+    router.setParams({ section: section === 'shopping' ? 'shopping' : undefined });
   };
   const [showUnitOptions, setShowUnitOptions] = useState(false);
   const [showCategoryOptions, setShowCategoryOptions] = useState(false);
@@ -1347,7 +1348,9 @@ export function ShoppingHome({
                       </Text>
                       <Pressable
                         accessibilityRole="button"
+                        accessibilityLabel={text.deletePurchased}
                         testID="shopping-clear-completed-button"
+                        hitSlop={6}
                         onPress={() =>
                           scheduleDelete(
                             purchasedItems.map((item) => item.id),
@@ -1359,9 +1362,11 @@ export function ShoppingHome({
                           { opacity: pressed ? 0.6 : 1 },
                         ]}
                       >
-                        <Text style={[styles.deletePurchasedText, { color: colors.accent }]}>
-                          {text.deletePurchased}
-                        </Text>
+                        <SymbolView
+                          name={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
+                          tintColor={colors.secondaryText}
+                          size={22}
+                        />
                       </Pressable>
                     </View>
                     <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
@@ -1657,15 +1662,14 @@ const styles = StyleSheet.create({
   sectionHeaderSpaced: {
     marginTop: Spacing.two,
   },
+  // Trash icon on the "Kupione" line, aligned with the delete icons of the rows below.
   deletePurchasedButton: {
     position: 'absolute',
-    right: 0,
-    minHeight: 44,
+    right: Spacing.two,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
     justifyContent: 'center',
-  },
-  deletePurchasedText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   itemsCard: {
     borderRadius: 16,
@@ -1751,8 +1755,8 @@ const styles = StyleSheet.create({
   },
   editItemActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.two,
+    justifyContent: 'center',
+    gap: Spacing.three,
   },
   editIconButton: {
     width: 44,

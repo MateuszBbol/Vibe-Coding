@@ -85,6 +85,8 @@ function TodoMemberPicker({
     ...members.filter((member) => member.user_id === currentUserId),
     ...members.filter((member) => member.user_id !== currentUserId),
   ];
+  const everyoneSelected =
+    members.length > 0 && members.every((member) => selectedIds.includes(member.user_id));
 
   const avatar = (selected: boolean, content: ReactNode) => (
     <View
@@ -145,6 +147,38 @@ function TodoMemberPicker({
             </Pressable>
           );
         })}
+        {members.length > 1 ? (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={text.todoEveryone}
+            accessibilityState={{ checked: everyoneSelected, disabled }}
+            aria-checked={everyoneSelected}
+            testID={`${testID}-all`}
+            disabled={disabled}
+            onPress={() =>
+              onChange(everyoneSelected ? [] : members.map((member) => member.user_id))
+            }
+            style={({ pressed }) => [styles.memberChip, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            {avatar(
+              everyoneSelected,
+              <SymbolView
+                name={{ ios: 'person.3', android: 'groups', web: 'groups' }}
+                tintColor={everyoneSelected ? colors.background : colors.secondaryText}
+                size={18}
+              />,
+            )}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.memberChipLabel,
+                { color: everyoneSelected ? colors.accent : colors.secondaryText },
+              ]}
+            >
+              {text.todoEveryone}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -422,14 +456,22 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
             }}
             style={styles.checkbox}
           >
-            <Text
+            <View
               style={[
-                styles.check,
-                { color: item.completed ? colors.accent : colors.secondaryText },
+                styles.checkCircle,
+                item.completed
+                  ? { backgroundColor: colors.accent, borderColor: colors.accent }
+                  : { borderColor: colors.secondaryText },
               ]}
             >
-              {item.completed ? '☑' : '☐'}
-            </Text>
+              {item.completed ? (
+                <SymbolView
+                  name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                  tintColor={colors.background}
+                  size={14}
+                />
+              ) : null}
+            </View>
           </Pressable>
         )}
         <View style={styles.itemContent}>
@@ -876,7 +918,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   checkbox: { width: 36, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
-  check: { fontSize: 22 },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   itemContent: { flex: 1, minWidth: 0, paddingVertical: Spacing.two, gap: Spacing.one },
   itemTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   itemTitle: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: '500' },

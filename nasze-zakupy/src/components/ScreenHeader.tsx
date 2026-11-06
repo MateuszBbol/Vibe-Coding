@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -32,13 +33,27 @@ export function ScreenHeader({
     >
       <View style={styles.side}>
         {onBack ? (
+          // Round icon button; the label stays available to screen readers.
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Wstecz"
             testID="navigation-back-button"
             onPress={onBack}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.backButton,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
           >
-            <Text style={[styles.back, { color: colors.accent }]}>‹ Wstecz</Text>
+            <SymbolView
+              name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+              tintColor={colors.accent}
+              size={22}
+            />
           </Pressable>
         ) : null}
       </View>
@@ -70,8 +85,13 @@ const styles = StyleSheet.create({
   right: {
     alignItems: 'flex-end',
   },
-  back: {
-    fontSize: 16,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     flex: 1,

@@ -20,14 +20,23 @@ type NavItem = {
 };
 
 // Top-level sections. Each one has its own URL so refresh and direct links keep the section.
+// Tasks are the default section of /home; shopping has its own query parameter.
 export const appSectionHrefs: Record<AppSection, Href> = {
-  shopping: '/home',
-  todo: { pathname: '/home', params: { section: 'todo' } } as Href,
+  shopping: { pathname: '/home', params: { section: 'shopping' } } as Href,
+  todo: '/home',
   recipes: '/recipes',
   lists: '/households',
 };
 
+// Order: Przepisy, Zakupy, Zadania, Grupy.
 const items: NavItem[] = [
+  {
+    section: 'recipes',
+    label: strings.pl.navigation.recipes,
+    testID: 'navigation-recipes',
+    href: appSectionHrefs.recipes,
+    icon: { ios: 'book.closed', android: 'menu_book', web: 'menu_book' },
+  },
   {
     section: 'shopping',
     label: strings.pl.navigation.shopping,
@@ -41,13 +50,6 @@ const items: NavItem[] = [
     testID: 'home-tab-todo',
     href: appSectionHrefs.todo,
     icon: { ios: 'checklist', android: 'checklist', web: 'checklist' },
-  },
-  {
-    section: 'recipes',
-    label: strings.pl.navigation.recipes,
-    testID: 'navigation-recipes',
-    href: appSectionHrefs.recipes,
-    icon: { ios: 'book.closed', android: 'menu_book', web: 'menu_book' },
   },
   {
     section: 'lists',

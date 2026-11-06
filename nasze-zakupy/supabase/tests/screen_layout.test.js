@@ -31,10 +31,11 @@ describe('screen layout contract', () => {
     expect(shopping).not.toContain('styles.navigationButtons');
     expect(shopping).not.toContain('styles.tabsRow');
     expect(shopping).not.toContain('<ScreenHeader');
+    // Order: Przepisy, Zakupy, Zadania, Grupy.
     const order = [
+      "testID: 'navigation-recipes'",
       "testID: 'home-tab-shopping'",
       "testID: 'home-tab-todo'",
-      "testID: 'navigation-recipes'",
       "testID: 'navigation-households'",
     ].map((id) => bottomNav.indexOf(id));
     expect(order.every((index) => index > -1)).toBe(true);
@@ -58,10 +59,12 @@ describe('screen layout contract', () => {
   });
 
   it('keeps the section in the URL and switches home sections in place', () => {
-    expect(bottomNav).toContain("todo: { pathname: '/home', params: { section: 'todo' } }");
-    expect(shopping).toContain("sectionParam === 'todo' ? 'todo' : 'shopping'");
+    // Tasks are the default section of /home; shopping is /home?section=shopping.
+    expect(bottomNav).toContain("shopping: { pathname: '/home', params: { section: 'shopping' } }");
+    expect(bottomNav).toContain("todo: '/home',");
+    expect(shopping).toContain("sectionParam === 'shopping' ? 'shopping' : 'todo'");
     expect(shopping).toContain(
-      "router.setParams({ section: section === 'todo' ? 'todo' : undefined })",
+      "router.setParams({ section: section === 'shopping' ? 'shopping' : undefined })",
     );
   });
 
@@ -410,6 +413,34 @@ describe('units, empty states, task editing and recipe buttons', () => {
   });
 });
 
+describe('edit icons, purchased trash, round checkbox and graphic back button', () => {
+  it('centres the check / X icons in every edit form', () => {
+    const shoppingActions = shopping.slice(shopping.indexOf('  editItemActions: {'));
+    expect(shoppingActions.slice(0, 120)).toContain("justifyContent: 'center'");
+    expect(todo).toContain("editActions: { justifyContent: 'center'");
+  });
+
+  it('clears purchased items with a trash icon on the "Kupione" line', () => {
+    const clear = shopping.slice(shopping.indexOf('testID="shopping-clear-completed-button"'));
+    expect(clear.slice(0, 700)).toContain("ios: 'trash'");
+    expect(shopping).toContain('accessibilityLabel={text.deletePurchased}');
+    expect(shopping).not.toContain('styles.deletePurchasedText');
+  });
+
+  it('uses a round task checkbox', () => {
+    const circle = todo.slice(todo.indexOf('  checkCircle: {'));
+    expect(circle.slice(0, 120)).toContain('borderRadius: 11');
+    expect(todo).not.toContain("'☑'");
+  });
+
+  it('shows a graphic Back button that keeps its test id and label', () => {
+    expect(screenHeader).toContain('testID="navigation-back-button"');
+    expect(screenHeader).toContain('accessibilityLabel="Wstecz"');
+    expect(screenHeader).toContain("ios: 'chevron.left'");
+    expect(screenHeader).not.toContain('‹ Wstecz');
+  });
+});
+
 describe('tasks layout contract', () => {
   it('splits open tasks into today (overdue included) and later', () => {
     expect(todo).toContain("type DueGroup = 'today' | 'later';");
@@ -437,8 +468,12 @@ describe('tasks layout contract', () => {
     expect(todo).toContain('{text.todoMembers}</Text>');
     expect(localization).toContain("todoMembers: 'Wykonawca'");
     expect(todo).toContain('...members.filter((member) => member.user_id === currentUserId),');
-    expect(todo).not.toContain('-all`}');
-    expect(todo).not.toContain('onChange([])');
+    // "Wszyscy" selects every member of the group; tapping it again clears the selection.
+    expect(todo).toContain('testID={`${testID}-all`}');
+    expect(todo).toContain(
+      'onChange(everyoneSelected ? [] : members.map((member) => member.user_id))',
+    );
+    expect(localization).toContain("todoEveryone: 'Wszyscy'");
     expect(todo).toContain('const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([]);');
     expect(todo).not.toContain('-toggle`}');
     expect(localization).not.toContain('todoNoAssignees');
