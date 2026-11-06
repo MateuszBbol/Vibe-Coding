@@ -28,6 +28,8 @@ export type RecipeStep = {
   text: string;
   sort_order: number;
   duration_minutes: number | null;
+  // sort_order values of the recipe ingredients used in this step (optional).
+  ingredient_sort_orders: number[];
 };
 export type RecipeDetails = Omit<Recipe, 'items_count'> & {
   items: RecipeItem[];
@@ -36,7 +38,12 @@ export type RecipeDetails = Omit<Recipe, 'items_count'> & {
 export type RecipeSaveValues = {
   name: string;
   description: string;
-  steps: { text: string; sort_order: number; duration_minutes: number | null }[];
+  steps: {
+    text: string;
+    sort_order: number;
+    duration_minutes: number | null;
+    ingredient_indexes: number[];
+  }[];
   items: Omit<RecipeItem, 'id' | 'recipe_id'>[];
 };
 
@@ -114,14 +121,21 @@ export async function fetchRecipe(
 
   const { data: steps, error: stepsError } = await client
     .from('recipe_steps')
-    .select('id, recipe_id, text, sort_order, duration_minutes')
+    .select('id, recipe_id, text, sort_order, duration_minutes, ingredient_sort_orders')
     .eq('recipe_id', recipeId)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
   if (stepsError) {
     throw stepsError;
   }
-  return { ...recipe, items: items ?? [], steps: steps ?? [] };
+  return {
+    ...recipe,
+    items: items ?? [],
+    steps: (steps ?? []).map((step) => ({
+      ...step,
+      ingredient_sort_orders: step.ingredient_sort_orders ?? [],
+    })),
+  };
 }
 
 export async function saveRecipe(

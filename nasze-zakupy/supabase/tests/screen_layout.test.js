@@ -470,6 +470,20 @@ describe('cooking mode (Przyrządź)', () => {
     expect(cook).toContain('testID="recipe-cook-done"');
     expect(localization).toContain("cookDoneTitle: 'Smacznego!'");
   });
+
+  it('shows the ingredients chosen for a step and resets the steps after finishing', () => {
+    expect(cook).toContain('testID={`recipe-cook-step-${index}-ingredients`}');
+    expect(cook).toContain('stepIngredients(step, recipe.items)');
+    const back = cook.slice(cook.indexOf('testID="recipe-cook-back-to-recipe"'));
+    expect(back.slice(0, 300)).toContain('updateChecked([]);');
+  });
+
+  it('lets a step optionally pick many of the recipe ingredients', () => {
+    const form = readFileSync(resolve(root, 'features/recipes/RecipeFormScreen.tsx'), 'utf8');
+    expect(form).toContain('name={`steps.${index}.ingredient_keys`}');
+    expect(form).toContain('buildRecipeSaveValues(values)');
+    expect(form).toContain('accessibilityRole="checkbox"');
+  });
 });
 
 describe('tasks layout contract', () => {

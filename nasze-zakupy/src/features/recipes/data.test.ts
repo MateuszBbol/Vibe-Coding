@@ -38,7 +38,14 @@ describe('recipe data RPCs', () => {
           sort_order: 0,
         },
       ],
-      steps: [{ text: 'Przygotuj składniki.', duration_minutes: 5, sort_order: 0 }],
+      steps: [
+        {
+          text: 'Przygotuj składniki.',
+          duration_minutes: 5,
+          sort_order: 0,
+          ingredient_indexes: [0],
+        },
+      ],
     };
 
     await expect(saveRecipe('household-1', null, values)).resolves.toBe('recipe-1');

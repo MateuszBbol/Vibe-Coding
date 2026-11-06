@@ -43,8 +43,19 @@ describe('recipe schema', () => {
         ],
       }).steps,
     ).toEqual([
-      { text: 'Przygotuj warzywa.', duration_minutes: 5, sort_order: 0 },
-      { text: 'Gotuj.', duration_minutes: null, sort_order: 1 },
+      { text: 'Przygotuj warzywa.', duration_minutes: 5, ingredient_keys: [], sort_order: 0 },
+      { text: 'Gotuj.', duration_minutes: null, ingredient_keys: [], sort_order: 1 },
+    ]);
+  });
+
+  it('keeps the optional ingredients chosen for a step', () => {
+    expect(
+      recipeSchema.parse({
+        ...validRecipe,
+        steps: [{ text: 'Wymieszaj.', duration_minutes: '', ingredient_keys: ['a', 'b'] }],
+      }).steps,
+    ).toEqual([
+      { text: 'Wymieszaj.', duration_minutes: null, ingredient_keys: ['a', 'b'], sort_order: 0 },
     ]);
   });
 
@@ -62,8 +73,8 @@ describe('recipe schema', () => {
         ],
       }).steps,
     ).toEqual([
-      { text: 'Bez czasu', duration_minutes: null, sort_order: 0 },
-      { text: 'Bez czasu podanego', duration_minutes: 0, sort_order: 1 },
+      { text: 'Bez czasu', duration_minutes: null, ingredient_keys: [], sort_order: 0 },
+      { text: 'Bez czasu podanego', duration_minutes: 0, ingredient_keys: [], sort_order: 1 },
     ]);
 
     for (const duration of ['-1', '1.5', 'abc', '2147483648']) {

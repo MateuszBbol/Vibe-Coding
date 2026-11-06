@@ -20,6 +20,7 @@ import { fetchRecipe } from '@/features/recipes/data';
 import type { RecipeStep } from '@/features/recipes/data';
 import { useRecipeHousehold } from '@/features/recipes/household';
 import { recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
+import { stepIngredients } from '@/features/recipes/stepIngredients';
 import { RecipeCard, RecipeFrame, RecipeMessage } from '@/features/recipes/RecipeUI';
 import { formatShoppingItemQuantity } from '@/features/shopping/format';
 import { strings } from '@/localization';
@@ -313,6 +314,33 @@ export function RecipeCookScreen({ recipeId }: { recipeId: string }) {
                         >
                           {step.text}
                         </Text>
+                        {stepIngredients(step, recipe.items).length ? (
+                          <View
+                            testID={`recipe-cook-step-${index}-ingredients`}
+                            style={styles.stepIngredients}
+                          >
+                            {stepIngredients(step, recipe.items).map((item) => (
+                              <View key={item.id} style={styles.stepIngredient}>
+                                <Text
+                                  style={[
+                                    styles.stepIngredientName,
+                                    { color: checked ? colors.secondaryText : colors.text },
+                                  ]}
+                                >
+                                  • {item.name}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.stepIngredientQuantity,
+                                    { color: colors.secondaryText },
+                                  ]}
+                                >
+                                  {formatShoppingItemQuantity(item.quantity, item.unit)}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
                         {step.duration_minutes !== null ? (
                           <>
                             <Text style={[styles.duration, { color: colors.secondaryText }]}>
@@ -378,7 +406,11 @@ export function RecipeCookScreen({ recipeId }: { recipeId: string }) {
                   <Pressable
                     accessibilityRole="button"
                     testID="recipe-cook-back-to-recipe"
-                    onPress={backToRecipe}
+                    onPress={() => {
+                      // Finished: start the next cooking from scratch.
+                      updateChecked([]);
+                      backToRecipe();
+                    }}
                     style={({ pressed }) => [
                       styles.doneButton,
                       { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
@@ -426,6 +458,10 @@ const styles = StyleSheet.create({
   stepNumber: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   stepText: { fontSize: 17, lineHeight: 25 },
   duration: { fontSize: 13 },
+  stepIngredients: { gap: 2, marginTop: Spacing.one },
+  stepIngredient: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
+  stepIngredientName: { flex: 1, fontSize: 15 },
+  stepIngredientQuantity: { fontSize: 14 },
   checkboxHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   checkCircle: {
     width: 30,

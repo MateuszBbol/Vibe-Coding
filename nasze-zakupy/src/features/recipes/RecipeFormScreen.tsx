@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import type { Control, FieldErrors, UseFormSetValue } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -20,6 +20,11 @@ import { getShoppingCategory, shoppingCategories } from '@/features/shopping/cat
 import { classifyShoppingProduct } from '@/features/shopping/productCategories';
 import { shoppingUnits } from '@/features/shopping/schemas';
 import { fetchRecipe, saveRecipe } from '@/features/recipes/data';
+import {
+  buildRecipeSaveValues,
+  ingredientKeyForSortOrder,
+  newIngredientKey,
+} from '@/features/recipes/stepIngredients';
 import type { RecipeFormInput, RecipeFormValues } from '@/features/recipes/schemas';
 import { recipeSchema } from '@/features/recipes/schemas';
 import { isValidRecipeId, recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
@@ -41,7 +46,7 @@ const initialForm: RecipeFormInput = {
   name: '',
   description: '',
   steps: [],
-  items: [{ name: '', quantity: '', unit: null, category: 'other' }],
+  items: [{ key: newIngredientKey(), name: '', quantity: '', unit: null, category: 'other' }],
 };
 
 export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
@@ -71,10 +76,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
   } = useFieldArray({ control: form.control, name: 'steps' });
   const mutation = useMutation({
     mutationFn: (values: RecipeFormValues) =>
-      saveRecipe(householdId ?? '', activeRecipeId ?? null, {
-        ...values,
-        items: values.items.map((item, index) => ({ ...item, sort_order: index })),
-      }),
+      saveRecipe(householdId ?? '', activeRecipeId ?? null, buildRecipeSaveValues(values)),
     onSuccess: async (savedRecipeId) => {
       await queryClient.invalidateQueries({ queryKey: recipeQueryKeys.list(householdId ?? '') });
       await queryClient.invalidateQueries({
@@ -111,11 +113,13 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
     form.reset({
       name: recipe.name,
       description: recipe.description ?? '',
-      steps: recipe.steps.map(({ text, duration_minutes }) => ({
+      steps: recipe.steps.map(({ text, duration_minutes, ingredient_sort_orders }) => ({
         text,
         duration_minutes: duration_minutes === null ? '' : String(duration_minutes),
+        ingredient_keys: ingredient_sort_orders.map(ingredientKeyForSortOrder),
       })),
       items: recipe.items.map((item) => ({
+        key: ingredientKeyForSortOrder(item.sort_order),
         name: item.name,
         quantity: item.quantity === null ? '' : String(item.quantity),
         unit: item.unit,
@@ -124,6 +128,8 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
     });
   }, [activeRecipeId, form, recipeQuery.data]);
 
+  // Current ingredients (names typed so far) to choose from in each step.
+  const watchedItems = useWatch({ control: form.control, name: 'items' }) ?? [];
   const save = form.handleSubmit((values) => mutation.mutate(values));
   const title = activeRecipeId ? text.editTitle : text.newTitle;
   const isLoading =
@@ -306,6 +312,67 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                 />
                 <Text style={{ color: colors.secondaryText }}>{text.minutes}</Text>
               </View>
+              <Controller
+                control={form.control}
+                name={`steps.${index}.ingredient_keys`}
+                render={({ field: { onChange, value } }) => {
+                  const selectedKeys = value ?? [];
+                  const choices = watchedItems.filter(
+                    (item) => item.key && item.name.trim().length > 0,
+                  );
+                  return choices.length ? (
+                    <View
+                      testID={`recipe-step-${index}-ingredients`}
+                      style={styles.stepIngredients}
+                    >
+                      <Text style={[styles.stepIngredientsLabel, { color: colors.secondaryText }]}>
+                        {text.stepIngredients}
+                      </Text>
+                      <View style={styles.stepIngredientChips}>
+                        {choices.map((item) => {
+                          const key = item.key ?? '';
+                          const selected = selectedKeys.includes(key);
+                          return (
+                            <Pressable
+                              key={key}
+                              accessibilityRole="checkbox"
+                              accessibilityState={{
+                                checked: selected,
+                                disabled: mutation.isPending,
+                              }}
+                              aria-checked={selected}
+                              accessibilityLabel={item.name}
+                              testID={`recipe-step-${index}-ingredient-${item.name.trim()}`}
+                              disabled={mutation.isPending}
+                              onPress={() =>
+                                onChange(
+                                  selected
+                                    ? selectedKeys.filter((selectedKey) => selectedKey !== key)
+                                    : [...selectedKeys, key],
+                                )
+                              }
+                              style={[
+                                styles.unitOption,
+                                {
+                                  backgroundColor: selected ? colors.accentSoft : colors.background,
+                                  borderColor: selected ? colors.accent : colors.border,
+                                },
+                              ]}
+                            >
+                              <Text style={{ color: selected ? colors.accent : colors.text }}>
+                                {selected ? '✓ ' : ''}
+                                {item.name.trim()}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  ) : (
+                    <></>
+                  );
+                }}
+              />
               {form.formState.errors.steps?.[index]?.duration_minutes?.message ? (
                 <RecipeError testID={`recipe-step-${index}-duration-error-message`}>
                   {form.formState.errors.steps[index]?.duration_minutes?.message}
@@ -328,7 +395,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
             disabled={mutation.isPending || stepFields.length >= 50}
             label={text.addStep}
             testID="recipe-add-step-button"
-            onPress={() => appendStep({ text: '', duration_minutes: '' })}
+            onPress={() => appendStep({ text: '', duration_minutes: '', ingredient_keys: [] })}
           />
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{text.ingredients}</Text>
@@ -361,7 +428,15 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
             disabled={mutation.isPending || fields.length >= 100}
             label={text.addIngredient}
             testID="recipe-add-ingredient-button"
-            onPress={() => append({ name: '', quantity: '', unit: null, category: 'other' })}
+            onPress={() =>
+              append({
+                key: newIngredientKey(),
+                name: '',
+                quantity: '',
+                unit: null,
+                category: 'other',
+              })
+            }
           />
           <RecipeButton
             disabled={mutation.isPending}
@@ -611,6 +686,9 @@ const styles = StyleSheet.create({
   },
   stepHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stepActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  stepIngredients: { gap: Spacing.one },
+  stepIngredientsLabel: { fontSize: 13, fontWeight: '600' },
+  stepIngredientChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
   stepDurationRow: {
     flexDirection: 'row',
     alignItems: 'center',

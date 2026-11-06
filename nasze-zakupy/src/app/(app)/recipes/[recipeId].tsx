@@ -12,6 +12,7 @@ import { fetchActiveShoppingList } from '@/features/shopping/data';
 import { deleteRecipe, fetchRecipe, addRecipeToActiveList } from '@/features/recipes/data';
 import { isValidRecipeId, recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
 import { useRecipeHousehold } from '@/features/recipes/household';
+import { stepIngredients } from '@/features/recipes/stepIngredients';
 import { RecipeCard, RecipeError, RecipeFrame, RecipeMessage } from '@/features/recipes/RecipeUI';
 import { formatShoppingItemQuantity } from '@/features/shopping/format';
 import { getShoppingCategory } from '@/features/shopping/categories';
@@ -229,6 +230,17 @@ export default function RecipeDetailsRoute() {
                       style={{ color: colors.secondaryText }}
                     >
                       {step.duration_minutes} {text.minutes}
+                    </Text>
+                  ) : null}
+                  {stepIngredients(step, recipeQuery.data?.items ?? []).length ? (
+                    <Text
+                      testID={`recipe-preparation-step-${index}-ingredients`}
+                      style={{ color: colors.secondaryText }}
+                    >
+                      {text.stepIngredientsShort}{' '}
+                      {stepIngredients(step, recipeQuery.data?.items ?? [])
+                        .map((item) => item.name)
+                        .join(', ')}
                     </Text>
                   ) : null}
                 </View>

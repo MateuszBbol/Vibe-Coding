@@ -33,6 +33,8 @@ const durationMinutesSchema = z
   );
 
 export const recipeItemSchema = z.object({
+  // Client-only key that lets a step point at an ingredient while the form is edited.
+  key: z.string().optional(),
   name: z.string().trim().min(1, 'Wpisz nazwę produktu.').max(120),
   quantity: quantitySchema,
   unit: z.enum(shoppingUnits).nullable(),
@@ -49,6 +51,8 @@ export const recipeSchema = z.object({
       z.object({
         text: z.string().trim().max(500, 'Punkt może mieć maksymalnie 500 znaków.'),
         duration_minutes: durationMinutesSchema,
+        // Keys of the recipe ingredients used in this step (optional, many allowed).
+        ingredient_keys: z.array(z.string()).default([]),
       }),
     )
     .max(50, 'Możesz dodać maksymalnie 50 punktów.')
