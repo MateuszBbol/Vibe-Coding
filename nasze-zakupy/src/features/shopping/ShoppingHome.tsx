@@ -1072,7 +1072,7 @@ export function ShoppingHome({
                           {value ?? text.noUnit}
                         </Text>
                         <Text style={[styles.selectorChange, { color: colors.accent }]}>
-                          {showUnitOptions ? '‹' : '⌄'}
+                          {showUnitOptions ? '⌃' : '⌄'}
                         </Text>
                       </Pressable>
                     </View>
@@ -1111,7 +1111,7 @@ export function ShoppingHome({
                           {getShoppingCategory(value).emoji} {getShoppingCategory(value).label}
                         </Text>
                         <Text style={[styles.selectorChange, { color: colors.accent }]}>
-                          {showCategoryOptions ? '‹' : '›'}
+                          {showCategoryOptions ? '⌃' : '⌄'}
                         </Text>
                       </Pressable>
                     </View>
@@ -1263,7 +1263,7 @@ export function ShoppingHome({
                     { color: colorScheme === 'dark' ? '#151915' : '#FFFFFF' },
                   ]}
                 >
-                  {addMutation.isPending ? text.adding : `+ ${text.addButton}`}
+                  {addMutation.isPending ? text.adding : text.addButton}
                 </Text>
               </Pressable>
               {errors.name?.message ? (
@@ -1543,6 +1543,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: Spacing.two,
+    textAlign: 'center',
     fontSize: 16,
   },
   addButton: {
@@ -1575,6 +1576,7 @@ const styles = StyleSheet.create({
   selectorLabel: {
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
   selectorButton: {
     height: 44,
@@ -1583,18 +1585,20 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.one,
+    justifyContent: 'center',
   },
   selectorValue: {
     flexShrink: 1,
     fontSize: 15,
     fontWeight: '500',
+    textAlign: 'center',
   },
   selectorChange: {
+    position: 'absolute',
+    right: Spacing.two,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1644,19 +1648,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
     fontWeight: '700',
+    textAlign: 'center',
   },
   sectionHeader: {
-    minHeight: 32,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
+    justifyContent: 'center',
+    marginBottom: Spacing.one,
   },
   sectionHeaderSpaced: {
     marginTop: Spacing.two,
   },
   deletePurchasedButton: {
+    position: 'absolute',
+    right: 0,
     minHeight: 44,
     justifyContent: 'center',
   },

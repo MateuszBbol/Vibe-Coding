@@ -43,7 +43,7 @@ export function ShoppingAppHeader({
           accessible
           accessibilityLabel={`${userName}, ${listLabel}`}
           testID="profile-identity"
-          style={[styles.identity, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={styles.identity}
         >
           <View style={styles.identityText}>
             <View style={styles.identityRow}>
@@ -131,13 +131,13 @@ const styles = StyleSheet.create({
   title: {
     flexShrink: 0,
     textAlign: 'center',
-    fontSize: 25,
-    lineHeight: 32,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '700',
   },
   compactTitle: {
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 24,
+    lineHeight: 30,
   },
   left: {
     flexDirection: 'row',
@@ -159,10 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
-    borderWidth: 1,
-    borderRadius: 14,
     paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
   },
   identityText: {
     flexShrink: 1,

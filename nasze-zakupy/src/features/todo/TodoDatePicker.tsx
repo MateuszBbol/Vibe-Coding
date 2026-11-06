@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
@@ -11,6 +12,9 @@ type TodoDatePickerProps = {
   onChange: (value: string) => void;
   disabled?: boolean;
   testID: string;
+  // Content shown in the same row as the calendar button (e.g. the assignee picker);
+  // the calendar itself still opens below at full width.
+  accessory?: ReactNode;
 };
 
 function monthStart(date: Date): Date {
@@ -21,7 +25,13 @@ function addMonths(date: Date, amount: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
 }
 
-export function TodoDatePicker({ value, onChange, disabled = false, testID }: TodoDatePickerProps) {
+export function TodoDatePicker({
+  value,
+  onChange,
+  disabled = false,
+  testID,
+  accessory,
+}: TodoDatePickerProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   const text = strings.pl.shopping;
@@ -50,7 +60,7 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
         month: 'long',
         year: 'numeric',
       }).format(parseTodoDate(value))
-    : `+ ${text.todoDueDatePlaceholder}`;
+    : null;
 
   return (
     <View style={styles.container}>
@@ -62,9 +72,10 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
           testID={testID}
           disabled={disabled}
           onPress={() => setIsOpen((open) => !open)}
-          // The deadline is optional: a compact chip, the calendar opens only on demand.
+          // The deadline is optional: just a calendar icon until a date is picked.
           style={({ pressed }) => [
             styles.field,
+            selectedLabel ? null : styles.iconOnly,
             {
               backgroundColor: value ? colors.accentSoft : colors.background,
               borderColor: isOpen || value ? colors.accent : colors.border,
@@ -75,14 +86,13 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
           <SymbolView
             name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
             tintColor={colors.accent}
-            size={16}
+            size={20}
           />
-          <Text
-            numberOfLines={1}
-            style={[styles.fieldText, { color: value ? colors.text : colors.accent }]}
-          >
-            {selectedLabel}
-          </Text>
+          {selectedLabel ? (
+            <Text numberOfLines={1} style={[styles.fieldText, { color: colors.text }]}>
+              {selectedLabel}
+            </Text>
+          ) : null}
         </Pressable>
         {value ? (
           <Pressable
@@ -96,6 +106,7 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
             <Text style={[styles.clearText, { color: colors.secondaryText }]}>×</Text>
           </Pressable>
         ) : null}
+        {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
       </View>
       {isOpen ? (
         <View
@@ -189,17 +200,19 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
 
 const styles = StyleSheet.create({
   container: { width: '100%' },
-  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  accessory: { flex: 1, minWidth: 0 },
   field: {
     flexShrink: 1,
-    minHeight: 40,
+    height: 44,
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 22,
     paddingHorizontal: Spacing.three,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
   },
+  iconOnly: { width: 44, paddingHorizontal: 0, justifyContent: 'center' },
   fieldText: { flexShrink: 1, fontSize: 14, fontWeight: '600' },
   clearButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
   clearText: { fontSize: 23, lineHeight: 27 },

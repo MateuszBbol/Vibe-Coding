@@ -447,14 +447,16 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                 onChange={setEditDueDate}
                 disabled={isPending}
                 testID={`todo-edit-due-date-${item.id}`}
-              />
-              <TodoMemberPicker
-                members={members}
-                currentUserId={userId}
-                selectedIds={editAssigneeIds}
-                onChange={setEditAssigneeIds}
-                disabled={isPending}
-                testID={`todo-edit-assignees-${item.id}`}
+                accessory={
+                  <TodoMemberPicker
+                    members={members}
+                    currentUserId={userId}
+                    selectedIds={editAssigneeIds}
+                    onChange={setEditAssigneeIds}
+                    disabled={isPending}
+                    testID={`todo-edit-assignees-${item.id}`}
+                  />
+                }
               />
               <View style={styles.itemActions}>
                 <Pressable
@@ -638,14 +640,16 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
           onChange={setNewDueDate}
           disabled={addMutation.isPending}
           testID="todo-due-date-input"
-        />
-        <TodoMemberPicker
-          members={members}
-          currentUserId={userId}
-          selectedIds={newAssigneeIds}
-          onChange={setNewAssigneeIds}
-          disabled={addMutation.isPending || membersQuery.isError}
-          testID="todo-add-assignees"
+          accessory={
+            <TodoMemberPicker
+              members={members}
+              currentUserId={userId}
+              selectedIds={newAssigneeIds}
+              onChange={setNewAssigneeIds}
+              disabled={addMutation.isPending || membersQuery.isError}
+              testID="todo-add-assignees"
+            />
+          }
         />
         {membersQuery.isError ? (
           <Text accessibilityRole="alert" testID="todo-members-error-message" style={styles.error}>
@@ -773,11 +777,12 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
 
 const styles = StyleSheet.create({
   container: { marginBottom: Spacing.four },
+  // Compact add-task card: tighter gaps and smaller assignee icons.
   section: {
-    gap: Spacing.three,
+    gap: 12,
     borderWidth: 1,
     borderRadius: 16,
-    padding: Spacing.three,
+    padding: 12,
     marginBottom: Spacing.two,
   },
   hidden: { display: 'none' },
@@ -808,17 +813,17 @@ const styles = StyleSheet.create({
     rowGap: Spacing.one,
   },
   memberPickerLabel: { fontSize: 14, fontWeight: '600', marginRight: Spacing.one },
-  memberChip: { width: 56, minHeight: 56, alignItems: 'center', gap: 2 },
+  memberChip: { width: 48, minHeight: 48, alignItems: 'center', gap: 2 },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 15, fontWeight: '700' },
-  memberChipLabel: { maxWidth: 56, fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  avatarText: { fontSize: 14, fontWeight: '700' },
+  memberChipLabel: { maxWidth: 48, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   error: { color: '#B42318', fontSize: 14, lineHeight: 21, marginTop: Spacing.one },
   empty: { fontSize: 14, lineHeight: 21, paddingVertical: Spacing.three },
   message: { fontSize: 14, lineHeight: 21 },

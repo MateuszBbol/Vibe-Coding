@@ -97,6 +97,10 @@ describe('screen layout contract', () => {
     expect(shoppingHeader).toContain('{listLabel}');
     expect(shoppingHeader).toContain("ios: 'person.crop.circle'");
     expect(shoppingHeader).toContain('testID="profile-identity"');
+    // User and list name are plain text, without a background box.
+    expect(shoppingHeader).toContain('style={styles.identity}');
+    const identity = shoppingHeader.slice(shoppingHeader.indexOf('  identity: {'));
+    expect(identity.slice(0, identity.indexOf('},'))).not.toContain('borderWidth');
     expect(shoppingHeader).not.toContain('navigation-households');
     expect(home).toContain('household={activeHousehold}');
   });
@@ -117,7 +121,7 @@ describe('screen layout contract', () => {
     expect(shoppingHeader).toContain("justifyContent: 'flex-end'");
     expect(shoppingHeader.match(/numberOfLines={1}/g)).toHaveLength(3);
     expect(shoppingHeader.match(/ellipsizeMode="tail"/g)).toHaveLength(2);
-    expect(shoppingHeader).toContain('fontSize: 25');
+    expect(shoppingHeader).toContain('fontSize: 30');
     expect(shoppingHeader).toContain("fontWeight: '700'");
   });
 
@@ -132,7 +136,7 @@ describe('screen layout contract', () => {
     expect(shopping).not.toContain("toLocaleUpperCase('pl-PL')");
     expect(screenHeader).toContain('fontSize: 24');
     expect(screenHeader).toContain('fontSize: 26');
-    expect(shoppingHeader).toContain('fontSize: 25');
+    expect(shoppingHeader).toContain('fontSize: 30');
     expect(localization).not.toContain('todoTitle:');
     expect(localization).toContain("todoTab: 'Zadania'");
     expect(localization).toContain("todoTab: 'Tasks'");
@@ -164,7 +168,9 @@ describe('screen layout contract', () => {
     expect(shopping).toContain('style={styles.selectorsRow}');
     expect(shopping).toContain('getShoppingCategory(value).emoji');
     expect(shopping).toContain('categoryManuallyOverridden.current = true');
-    expect(shopping).toContain("{showCategoryOptions ? '‹' : '›'}");
+    // Both dropdowns point down when closed and up when open.
+    expect(shopping).toContain("{showUnitOptions ? '⌃' : '⌄'}");
+    expect(shopping).toContain("{showCategoryOptions ? '⌃' : '⌄'}");
     expect(shopping).not.toContain('${text.change} ›');
   });
 
@@ -210,14 +216,35 @@ describe('shopping add form contract', () => {
     }
   });
 
-  it('shows quantity without a centred hint, at the same height as the selectors', () => {
+  it('centres labels and values of quantity, unit and category at one height', () => {
     const quantity = shopping.slice(shopping.indexOf('testID="shopping-quantity-input"'));
     expect(quantity.slice(0, quantity.indexOf('/>'))).not.toContain('placeholder=');
     const input = shopping.slice(shopping.indexOf('  quantityInput: {'));
-    expect(input.slice(0, 220)).not.toContain("textAlign: 'center'");
-    expect(input.slice(0, 220)).toContain('height: 44');
+    expect(input.slice(0, 240)).toContain("textAlign: 'center'");
+    expect(input.slice(0, 240)).toContain('height: 44');
     const selector = shopping.slice(shopping.indexOf('  selectorButton: {'));
-    expect(selector.slice(0, 80)).toContain('height: 44');
+    expect(selector.slice(0, 300)).toContain('height: 44');
+    expect(selector.slice(0, 300)).toContain("justifyContent: 'center'");
+    const label = shopping.slice(shopping.indexOf('  selectorLabel: {'));
+    expect(label.slice(0, 100)).toContain("textAlign: 'center'");
+    const value = shopping.slice(shopping.indexOf('  selectorValue: {'));
+    expect(value.slice(0, 120)).toContain("textAlign: 'center'");
+    const arrow = shopping.slice(shopping.indexOf('  selectorChange: {'));
+    expect(arrow.slice(0, 100)).toContain("position: 'absolute'");
+  });
+
+  it('labels the add button without a "+" sign', () => {
+    expect(shopping).toContain('{addMutation.isPending ? text.adding : text.addButton}');
+    expect(shopping).not.toContain('`+ ${text.addButton}`');
+  });
+
+  it('centres "Lista zakupów" and "Kupione" on the screen', () => {
+    const header = shopping.slice(shopping.indexOf('  sectionHeader: {'));
+    expect(header.slice(0, 160)).toContain("justifyContent: 'center'");
+    const title = shopping.slice(shopping.indexOf('  sectionTitle: {'));
+    expect(title.slice(0, 120)).toContain("textAlign: 'center'");
+    const clear = shopping.slice(shopping.indexOf('  deletePurchasedButton: {'));
+    expect(clear.slice(0, 120)).toContain("position: 'absolute'");
   });
 
   it('opens unit and category choices under the whole row, full width', () => {
@@ -308,11 +335,12 @@ describe('tasks layout contract', () => {
     expect(input.slice(0, 260)).toContain('fontSize: 16');
   });
 
-  it('keeps the optional deadline behind a compact button', () => {
+  it('shows the optional deadline as a calendar icon only until a date is picked', () => {
     const picker = readFileSync(resolve(root, 'features/todo/TodoDatePicker.tsx'), 'utf8');
-    expect(picker).toContain('`+ ${text.todoDueDatePlaceholder}`');
+    expect(picker).toContain('selectedLabel ? null : styles.iconOnly');
     expect(picker).toContain('{isOpen ? (');
-    expect(localization).toContain("todoDueDatePlaceholder: 'Termin'");
+    expect(picker).not.toContain('todoDueDatePlaceholder');
+    expect(localization).not.toContain('todoDueDatePlaceholder');
   });
 
   it('offers editing only for tasks that are not completed', () => {
