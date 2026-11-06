@@ -1609,11 +1609,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  // Category value sits at the left edge; the arrow stays on the right like the unit field.
   categorySelectorButton: {
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingLeft: Spacing.two,
+    paddingRight: 26,
   },
   categoryValue: {
-    textAlign: 'right',
+    textAlign: 'left',
   },
   selectorChange: {
     position: 'absolute',

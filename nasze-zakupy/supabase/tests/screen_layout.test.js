@@ -300,7 +300,7 @@ describe('latest layout requests', () => {
     expect(shoppingHeader).not.toContain("ios: 'cart'");
   });
 
-  it('gives quantity less room than category and aligns the category value right', () => {
+  it('gives quantity less room than category and aligns the category value to the left edge', () => {
     const quantity = shopping.slice(shopping.indexOf('  quantityColumn: {'));
     const category = shopping.slice(shopping.indexOf('  categoryColumn: {'));
     const q = Number(/flex: ([\d.]+)/.exec(quantity)[1]);
@@ -309,7 +309,7 @@ describe('latest layout requests', () => {
     expect(c).toBeGreaterThan(1);
     expect(shopping).toContain('styles.categoryValue');
     const value = shopping.slice(shopping.indexOf('  categoryValue: {'));
-    expect(value.slice(0, 60)).toContain("textAlign: 'right'");
+    expect(value.slice(0, 60)).toContain("textAlign: 'left'");
   });
 
   it('labels the task date on the left and the assignee on the right', () => {

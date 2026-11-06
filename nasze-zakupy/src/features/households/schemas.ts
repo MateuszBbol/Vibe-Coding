@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const householdNameSchema = z
   .string()
   .trim()
-  .min(1, 'Wpisz nazwę przestrzeni.')
+  .min(1, 'Wpisz nazwę miejsca.')
   .max(80, 'Nazwa może mieć maksymalnie 80 znaków.');
 
 export const householdFormSchema = z.object({
