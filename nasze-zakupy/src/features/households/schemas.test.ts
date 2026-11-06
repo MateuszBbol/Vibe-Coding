@@ -8,7 +8,7 @@ describe('householdNameSchema', () => {
   it('rejects empty or oversized names', () => {
     expect(householdNameSchema.safeParse('  ')).toMatchObject({
       success: false,
-      error: { issues: [{ message: 'Wpisz nazwę miejsca.' }] },
+      error: { issues: [{ message: 'Wpisz nazwę grupy.' }] },
     });
     expect(householdNameSchema.safeParse('x'.repeat(81)).success).toBe(false);
   });

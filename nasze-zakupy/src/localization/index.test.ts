@@ -25,29 +25,25 @@ describe('foundation translations', () => {
     expect(Object.keys(strings.en.recipes)).toEqual(Object.keys(strings.pl.recipes));
   });
 
-  it('calls the shared container a place (Miejsce) and keeps "Lista zakupów" for products', () => {
+  it('calls the shared container a group (Grupa) and keeps "Lista zakupów" for products', () => {
     expect(collectStringValues(strings.pl).join(' ')).not.toMatch(/gospodarst/i);
     expect(collectStringValues(strings.en).join(' ')).not.toMatch(/households?/i);
-    expect(strings.pl.navigation.lists).toBe('Miejsca');
-    expect(strings.en.navigation.lists).toBe('Places');
-    expect(strings.pl.household.managementTitle).toBe('Moje miejsca');
-    expect(strings.pl.household.listTitle).toBe('Moje miejsca');
-    expect(strings.pl.household.newHousehold).toBe('Nowe miejsce');
-    expect(strings.pl.household.householdCount(3)).toBe('3 z 3 miejsc');
-    expect(strings.pl.household.activeLabel).toBe('Aktywne miejsce');
-    expect(strings.pl.household.leaveButton).toBe('Opuść miejsce');
-    expect(strings.pl.household.deleteHouseholdButton).toBe('Usuń miejsce');
-    expect(strings.pl.household.invitationsTitle).toBe('Udostępnianie miejsca');
-    expect(strings.pl.household.joinTitle).toBe('Dołącz do miejsca');
-    expect(strings.pl.household.inviteTitle).toBe('Udostępnij miejsce');
-    expect(strings.pl.household.codeLabel).toBe('Kod zaproszenia do miejsca');
-    expect(strings.pl.featureErrors.householdLimit).toBe(
-      'Możesz korzystać maksymalnie z 3 miejsc.',
-    );
-    expect(strings.pl.featureErrors.deleteNotFound).toBe('To miejsce już nie istnieje.');
-    expect(strings.pl.featureErrors.deleteOwnerOnly).toBe(
-      'Tylko właściciel może usunąć to miejsce.',
-    );
+    expect(strings.pl.navigation.lists).toBe('Grupy');
+    expect(strings.en.navigation.lists).toBe('Groups');
+    expect(strings.pl.household.managementTitle).toBe('Moje grupy');
+    expect(strings.pl.household.listTitle).toBe('Moje grupy');
+    expect(strings.pl.household.newHousehold).toBe('Nowa grupa');
+    expect(strings.pl.household.householdCount(3)).toBe('3 z 3 grup');
+    expect(strings.pl.household.activeLabel).toBe('Aktywna grupa');
+    expect(strings.pl.household.leaveButton).toBe('Opuść grupę');
+    expect(strings.pl.household.deleteHouseholdButton).toBe('Usuń grupę');
+    expect(strings.pl.household.invitationsTitle).toBe('Udostępnianie grupy');
+    expect(strings.pl.household.joinTitle).toBe('Dołącz do grupy');
+    expect(strings.pl.household.inviteTitle).toBe('Udostępnij grupę');
+    expect(strings.pl.household.codeLabel).toBe('Kod zaproszenia do grupy');
+    expect(strings.pl.featureErrors.householdLimit).toBe('Możesz korzystać maksymalnie z 3 grup.');
+    expect(strings.pl.featureErrors.deleteNotFound).toBe('Ta grupa już nie istnieje.');
+    expect(strings.pl.featureErrors.deleteOwnerOnly).toBe('Tylko właściciel może usunąć tę grupę.');
     // The container is never called a "lista" any more; only the product list is.
     for (const value of collectStringValues(strings.pl.household)) {
       // "lista zakupów" / "listy zakupowej" refer to the product list and are allowed.
