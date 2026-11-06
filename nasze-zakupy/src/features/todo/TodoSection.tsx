@@ -122,6 +122,7 @@ function TodoMemberPicker({
                   accessibilityRole="checkbox"
                   accessibilityLabel={label}
                   accessibilityState={{ checked: selected, disabled }}
+                  aria-checked={selected}
                   testID={`${testID}-member-${member.user_id}`}
                   disabled={disabled}
                   onPress={() =>
@@ -216,7 +217,18 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         completed?: boolean;
         assigneeIds?: string[];
       };
-    }) => updateTodoItem(householdId, item, values),
+    }) => {
+      // Someone who left the list can still be in a cached task; never send them back,
+      // otherwise the server rejects the whole update.
+      const memberIds = membersQuery.data
+        ? new Set(membersQuery.data.map((member) => member.user_id))
+        : null;
+      const assigneeIds = values.assigneeIds ?? item.assignees.map(({ user_id }) => user_id);
+      return updateTodoItem(householdId, item, {
+        ...values,
+        assigneeIds: memberIds ? assigneeIds.filter((id) => memberIds.has(id)) : assigneeIds,
+      });
+    },
     onSuccess: async (_result, variables) => {
       if (variables.values.completed === undefined) {
         setEditingId(null);
@@ -239,6 +251,14 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
       if (errorText.includes('changed by another user')) {
         await refreshItems();
         setActionError(text.itemChangedConflict);
+        return;
+      }
+      if (errorText.includes('not a member of this household')) {
+        await Promise.all([
+          refreshItems(),
+          queryClient.invalidateQueries({ queryKey: membersQueryKey }),
+        ]);
+        setActionError(text.todoAssigneeLeft);
         return;
       }
       setActionError(getFeatureErrorMessage(error));
@@ -399,6 +419,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         <Pressable
           accessibilityRole="checkbox"
           accessibilityState={{ checked: item.completed, disabled: isPending }}
+          aria-checked={item.completed}
           accessibilityLabel={item.title}
           testID={`todo-checkbox-${item.id}`}
           disabled={isPending}

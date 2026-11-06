@@ -3,27 +3,44 @@ import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/theme';
+import { AppBottomNav } from '@/components/AppBottomNav';
+import type { AppSection } from '@/components/AppBottomNav';
 import { ScreenHeader } from '@/components/ScreenHeader';
 
 type RecipeFrameProps = PropsWithChildren<{
   title: string;
-  onBack: () => void;
+  onBack?: () => void;
   action?: ReactNode;
   testID?: string;
+  // Top-level section screens show the bottom navigation instead of a Back button.
+  section?: AppSection;
 }>;
 
-export function RecipeFrame({ title, onBack, action, testID, children }: RecipeFrameProps) {
+export function RecipeFrame({
+  title,
+  onBack,
+  action,
+  testID,
+  section,
+  children,
+}: RecipeFrameProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   return (
     <SafeAreaView
       testID={testID ?? 'recipes-screen'}
+      edges={section ? ['top', 'left', 'right'] : undefined}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
       <ScreenHeader title={title} onBack={onBack} rightAction={action} borderColor="#8C9386" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {children}
       </ScrollView>
+      {section ? <AppBottomNav active={section} /> : null}
     </SafeAreaView>
   );
 }
@@ -104,6 +121,7 @@ export function RecipeMessage({ children, testID }: { children: string; testID?:
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  body: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: Spacing.five },
   card: { borderWidth: 1, borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
   button: {

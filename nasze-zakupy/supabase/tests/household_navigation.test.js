@@ -10,6 +10,10 @@ const shopping = readFileSync(
   resolve(__dirname, '../../src/features/shopping/ShoppingHome.tsx'),
   'utf8',
 ).toLowerCase();
+const bottomNav = readFileSync(
+  resolve(__dirname, '../../src/components/AppBottomNav.tsx'),
+  'utf8',
+).toLowerCase();
 const details = readFileSync(
   resolve(appRoot, 'households/[householdId].tsx'),
   'utf8',
@@ -33,7 +37,8 @@ describe('household navigation contract', () => {
   it('uses the parent route for households and never navigates to /index', () => {
     expect(routes).toContain("root: () => '/households'");
     expect(routes).not.toContain("pathname: '/households/index'");
-    expect(shopping).toContain('router.push(householdroutes.root())');
+    expect(bottomNav).toContain("lists: '/households'");
+    expect(bottomNav).toContain("testid: 'navigation-households'");
   });
 
   it('provides separate list, invitation, creation, and household details routes', () => {
@@ -44,7 +49,7 @@ describe('household navigation contract', () => {
   });
 
   it('keeps household management and invitation UI off the shopping screen', () => {
-    expect(shopping).toContain('householdroutes.root()');
+    expect(shopping).not.toContain('householdroutes');
     expect(shopping).not.toContain('householdinvitation');
     expect(shopping).not.toContain('householdswitcher');
   });

@@ -17,6 +17,7 @@ import {
 } from '@/features/households/routes';
 import { useHouseholds } from '@/features/households/useHouseholds';
 import type { Household } from '@/features/households/data';
+import { appSectionHrefs } from '@/components/AppBottomNav';
 import { strings } from '@/localization';
 
 function isHouseholdOwner(household: Household, userId: string): boolean {
@@ -54,7 +55,9 @@ export default function HouseholdInvitationsRoute() {
     await queryClient.invalidateQueries({
       queryKey: householdQueryKeys.memberships(userId ?? ''),
     });
-    router.back();
+    // The new list is now active: open its shopping section and clear the setup screens.
+    router.dismissAll();
+    router.replace(appSectionHrefs.shopping);
   };
 
   return (

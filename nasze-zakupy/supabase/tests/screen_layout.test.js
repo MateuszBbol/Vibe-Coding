@@ -14,6 +14,7 @@ const householdUI = readFileSync(resolve(root, 'features/households/HouseholdUI.
 const screenHeader = readFileSync(resolve(root, 'components/ScreenHeader.tsx'), 'utf8');
 const localization = readFileSync(resolve(root, 'localization/index.ts'), 'utf8');
 const recipeRoutes = readFileSync(resolve(root, 'features/recipes/routes.ts'), 'utf8');
+const bottomNav = readFileSync(resolve(root, 'components/AppBottomNav.tsx'), 'utf8');
 const householdRoutes = readFileSync(resolve(root, 'features/households/routes.ts'), 'utf8');
 
 describe('screen layout contract', () => {
@@ -25,29 +26,43 @@ describe('screen layout contract', () => {
     expect(localization).toContain("create: 'New recipe'");
   });
 
-  it('uses one compact navigation row with section tabs, recipes and a list menu', () => {
+  it('uses a single bottom navigation with four sections in a fixed order', () => {
     expect(shopping).not.toContain('styles.navigationButtons');
+    expect(shopping).not.toContain('styles.tabsRow');
     expect(shopping).not.toContain('<ScreenHeader');
-    expect(shopping.indexOf('testID="home-tab-shopping"')).toBeLessThan(
-      shopping.indexOf('testID="navigation-recipes"'),
-    );
-    expect(shopping.indexOf('testID="navigation-recipes"')).toBeLessThan(
-      shopping.indexOf('testID="shopping-list-menu-button"'),
-    );
-    expect(shopping).toContain('router.push(recipeRoutes.list(household.id))');
-    expect(shopping).toContain('onSwitchList={() => router.push(householdRoutes.root())}');
-    expect(shopping).toContain('style={styles.tabsRow}');
-    expect(shopping).toContain('minHeight: 40');
-    expect(shopping).toContain('testID="home-tab-shopping"');
-    expect(shopping).toContain('testID="home-tab-todo"');
+    const order = [
+      "testID: 'home-tab-shopping'",
+      "testID: 'home-tab-todo'",
+      "testID: 'navigation-recipes'",
+      "testID: 'navigation-households'",
+    ].map((id) => bottomNav.indexOf(id));
+    expect(order.every((index) => index > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(bottomNav).toContain('accessibilityRole="tab"');
+    expect(bottomNav).toContain('accessibilityState={{ selected }}');
+    expect(bottomNav).toContain('minHeight: 56');
+    expect(bottomNav).toContain('<SymbolView name={item.icon}');
+    expect(shopping).toContain('{bottomNav}');
   });
 
-  it('keeps secondary list actions in the menu and destructive actions out of it', () => {
-    expect(shopping).toContain('testID="shopping-menu-share"');
-    expect(shopping).toContain('{isOwner ? (');
-    expect(shopping).toContain('householdRoutes.invitations(household.id)');
-    expect(shopping).toContain('testID="shopping-menu-settings"');
-    expect(shopping).toContain('householdRoutes.details(household.id)');
+  it('keeps the bottom navigation out of the scroll area and above the safe-area inset', () => {
+    expect(bottomNav).toContain('useSafeAreaInsets()');
+    expect(bottomNav).toContain('paddingBottom: Math.max(insets.bottom, Spacing.one)');
+    expect(shopping).toContain("edges={['top', 'left', 'right']}");
+    expect(shopping.lastIndexOf('</ScrollView>')).toBeLessThan(shopping.lastIndexOf('{bottomNav}'));
+    expect(householdUI).toContain('{section ? <AppBottomNav active={section} /> : null}');
+    expect(recipeUI).toContain('{section ? <AppBottomNav active={section} /> : null}');
+  });
+
+  it('keeps the section in the URL and switches home sections in place', () => {
+    expect(bottomNav).toContain("todo: { pathname: '/home', params: { section: 'todo' } }");
+    expect(shopping).toContain("sectionParam === 'todo' ? 'todo' : 'shopping'");
+    expect(shopping).toContain("router.setParams({ section: section === 'todo' ? 'todo' : undefined })");
+  });
+
+  it('keeps list management, sharing and deletion off the shopping screen', () => {
+    expect(shopping).not.toContain('shopping-list-menu-button');
+    expect(shopping).not.toContain('invitations(');
     expect(shopping).not.toContain('deleteHousehold');
     expect(shopping).not.toContain('deleteShoppingList');
   });
@@ -78,14 +93,15 @@ describe('screen layout contract', () => {
     expect(shoppingHeader).toContain('const listLabel = activeListName || noActiveListLabel;');
     expect(shoppingHeader).toContain('{listLabel}');
     expect(shoppingHeader).toContain("ios: 'person.crop.circle'");
-    expect(shoppingHeader).toContain('testID="navigation-households"');
+    expect(shoppingHeader).toContain('testID="profile-identity"');
+    expect(shoppingHeader).not.toContain('navigation-households');
     expect(home).toContain('household={activeHousehold}');
   });
 
   it('keeps branding left and the compact, truncated user and active-list block on the right', () => {
     expect(shoppingHeader).toContain("justifyContent: 'space-between'");
     expect(shoppingHeader).toContain("justifyContent: 'flex-end'");
-    expect(shoppingHeader.indexOf('testID="navigation-households"')).toBeLessThan(
+    expect(shoppingHeader.indexOf('testID="profile-identity"')).toBeLessThan(
       shoppingHeader.indexOf('testID="profile-logout-button"'),
     );
     expect(shoppingHeader.match(/numberOfLines={1}/g)).toHaveLength(3);

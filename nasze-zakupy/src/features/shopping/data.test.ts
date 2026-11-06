@@ -85,43 +85,85 @@ describe('shopping data operations', () => {
     expect(mockQuery.is).toHaveBeenCalledWith('deleted_at', null);
   });
 
-  it('inserts a product with null quantity and unit when both are omitted', async () => {
-    await addShoppingItem('active-list-id', 'user-id', 'Chleb', null, null, null);
+  it('adds a product through the merge RPC and reports whether it was merged', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [{ item_id: 'item-1', merged: true }], error: null });
 
-    expect(mockFrom).toHaveBeenCalledWith('shopping_items');
-    expect(mockQuery.insert).toHaveBeenCalledWith({
-      list_id: 'active-list-id',
-      name: 'Chleb',
-      quantity: null,
-      unit: null,
-      category: null,
-      created_by: 'user-id',
+    await expect(
+      addShoppingItem('active-list-id', 'user-id', 'Mleko', 2, 'szt.', 'dairy'),
+    ).resolves.toEqual({ merged: true });
+    expect(mockRpc).toHaveBeenCalledWith('add_shopping_item', {
+      target_list_id: 'active-list-id',
+      target_name: 'Mleko',
+      target_quantity: 2,
+      target_unit: 'szt.',
+      target_category: 'dairy',
     });
+    expect(mockQuery.insert).not.toHaveBeenCalled();
   });
 
-  it('preserves decimal quantities and selected units for Supabase', async () => {
-    await addShoppingItem('active-list-id', 'user-id', 'Banany', 1.5, 'kg', null);
+  it('reports a new row when the RPC inserted the product', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [{ item_id: 'item-2', merged: false }], error: null });
 
-    expect(mockQuery.insert).toHaveBeenCalledWith({
-      list_id: 'active-list-id',
-      name: 'Banany',
-      quantity: 1.5,
-      unit: 'kg',
-      category: null,
-      created_by: 'user-id',
-    });
+    await expect(
+      addShoppingItem('active-list-id', 'user-id', 'Banany', 1.5, 'kg', null),
+    ).resolves.toEqual({ merged: false });
   });
 
-  it('inserts a selected category with the product data', async () => {
-    await addShoppingItem('active-list-id', 'user-id', 'Mleko', 2, 'szt.', 'dairy');
+  it('throws RPC errors other than a missing function without inserting', async () => {
+    const error = { code: 'P0001', message: 'Shopping list unavailable.' };
+    mockRpc.mockResolvedValueOnce({ data: null, error });
 
-    expect(mockQuery.insert).toHaveBeenCalledWith({
-      list_id: 'active-list-id',
-      name: 'Mleko',
-      quantity: 2,
-      unit: 'szt.',
-      category: 'dairy',
-      created_by: 'user-id',
+    await expect(addShoppingItem('active-list-id', 'user-id', 'Chleb', 1, null, null)).rejects.toBe(
+      error,
+    );
+    expect(mockQuery.insert).not.toHaveBeenCalled();
+  });
+
+  describe('before migration 202611060001 is applied', () => {
+    beforeEach(() => {
+      mockRpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'missing' } });
+    });
+
+    it('inserts a product with null quantity and unit when both are omitted', async () => {
+      await addShoppingItem('active-list-id', 'user-id', 'Chleb', null, null, null);
+
+      expect(mockFrom).toHaveBeenCalledWith('shopping_items');
+      expect(mockQuery.insert).toHaveBeenCalledWith({
+        list_id: 'active-list-id',
+        name: 'Chleb',
+        quantity: null,
+        unit: null,
+        category: null,
+        created_by: 'user-id',
+      });
+    });
+
+    it('preserves decimal quantities and selected units for Supabase', async () => {
+      await addShoppingItem('active-list-id', 'user-id', 'Banany', 1.5, 'kg', null);
+
+      expect(mockQuery.insert).toHaveBeenCalledWith({
+        list_id: 'active-list-id',
+        name: 'Banany',
+        quantity: 1.5,
+        unit: 'kg',
+        category: null,
+        created_by: 'user-id',
+      });
+    });
+
+    it('inserts a selected category with the product data', async () => {
+      await expect(
+        addShoppingItem('active-list-id', 'user-id', 'Mleko', 2, 'szt.', 'dairy'),
+      ).resolves.toEqual({ merged: false });
+
+      expect(mockQuery.insert).toHaveBeenCalledWith({
+        list_id: 'active-list-id',
+        name: 'Mleko',
+        quantity: 2,
+        unit: 'szt.',
+        category: 'dairy',
+        created_by: 'user-id',
+      });
     });
   });
 

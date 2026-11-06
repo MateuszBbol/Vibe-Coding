@@ -15,7 +15,7 @@ function collectStringValues(value: unknown): string[] {
 
 describe('foundation translations', () => {
   it('provides Polish copy for the initial screen', () => {
-    expect(strings.pl.appName).toBe('Nasze Zakupy');
+    expect(strings.pl.appName).toBe('Home');
     expect(strings.pl.readyItems).toContain('Lista produktów na żywo');
     expect(strings.pl.readyItems).toContain('Dostęp chroniony przez RLS');
   });

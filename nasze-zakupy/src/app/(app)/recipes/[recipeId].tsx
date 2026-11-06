@@ -160,7 +160,8 @@ export default function RecipeDetailsRoute() {
     }
     confirmRecipeAction({
       title: text.addAllConfirmTitle,
-      message: text.addAllConfirmMessage(recipe.items.length, list.name),
+      // Users know the list by its own name; the internal shopping list is always "Zakupy".
+      message: text.addAllConfirmMessage(recipe.items.length, household?.name ?? list.name),
       cancelLabel: strings.pl.auth.cancel,
       confirmLabel: text.addAll,
       onConfirm: () => {

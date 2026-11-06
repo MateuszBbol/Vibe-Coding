@@ -16,10 +16,8 @@ type ShoppingAppHeaderProps = {
   noActiveListLabel: string;
   title: string;
   signOutLabel: string;
-  switchListLabel: string;
   isSigningOut: boolean;
   onSignOut: () => void;
-  onSwitchList: () => void;
 };
 
 export function ShoppingAppHeader({
@@ -28,10 +26,8 @@ export function ShoppingAppHeader({
   noActiveListLabel,
   title,
   signOutLabel,
-  switchListLabel,
   isSigningOut,
   onSignOut,
-  onSwitchList,
 }: ShoppingAppHeaderProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
@@ -48,16 +44,12 @@ export function ShoppingAppHeader({
         {title}
       </Text>
       <View style={styles.right}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${userName}, ${listLabel}. ${switchListLabel}`}
-          testID="navigation-households"
-          onPress={onSwitchList}
-          style={({ pressed }) => [
-            styles.identity,
-            { backgroundColor: colors.card, borderColor: colors.border },
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
+        {/* Read-only identity: lists are managed from the "Listy" section of the bottom bar. */}
+        <View
+          accessible
+          accessibilityLabel={`${userName}, ${listLabel}`}
+          testID="profile-identity"
+          style={[styles.identity, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
           <View style={styles.identityText}>
             <View style={styles.identityRow}>
@@ -95,12 +87,7 @@ export function ShoppingAppHeader({
               </Text>
             </View>
           </View>
-          <SymbolView
-            name={{ ios: 'chevron.down', android: 'expand_more', web: 'expand_more' }}
-            tintColor={colors.secondaryText}
-            size={16}
-          />
-        </Pressable>
+        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={signOutLabel}
@@ -162,8 +149,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: Spacing.one,
-    paddingLeft: Spacing.two,
-    paddingRight: Spacing.one,
+    paddingHorizontal: Spacing.two,
   },
   identityText: {
     flexShrink: 1,

@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,9 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
-import { recipeRoutes } from '@/features/recipes/routes';
 import type { Household } from '@/features/households/data';
-import { householdRoutes } from '@/features/households/routes';
 import {
   addShoppingItem,
   createShoppingList,
@@ -45,6 +42,8 @@ import {
 import { shoppingItemSchema, shoppingUnits } from '@/features/shopping/schemas';
 import type { ShoppingItemInput, ShoppingItemValues } from '@/features/shopping/schemas';
 import { Colors, Spacing } from '@/constants/theme';
+import { AppBottomNav } from '@/components/AppBottomNav';
+import type { HomeSection } from '@/components/AppBottomNav';
 import { ShoppingAppHeader } from '@/features/shopping/ShoppingAppHeader';
 import { TodoSection } from '@/features/todo/TodoSection';
 import { fetchTodoItems } from '@/features/todo/data';
@@ -112,9 +111,13 @@ export function ShoppingHome({
   );
   const [realtimeAttempt, setRealtimeAttempt] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'shopping' | 'todo'>('shopping');
-  const [listMenuOpen, setListMenuOpen] = useState(false);
-  const isOwner = household.role === 'owner' && household.owner_id === userId;
+  // The section lives in the URL (/home?section=todo) so refresh and direct links keep it.
+  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
+  const activeTab: HomeSection = sectionParam === 'todo' ? 'todo' : 'shopping';
+  const selectSection = (section: HomeSection) => {
+    router.setParams({ section: section === 'todo' ? 'todo' : undefined });
+  };
   const [showUnitOptions, setShowUnitOptions] = useState(false);
   const [showCategoryOptions, setShowCategoryOptions] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -548,6 +551,7 @@ export function ShoppingHome({
             checked: item.is_purchased,
             disabled: isItemActionPending || isEditing,
           }}
+          aria-checked={item.is_purchased}
           accessibilityLabel={[item.name, formatShoppingItemQuantity(item.quantity, item.unit)]
             .filter(Boolean)
             .join(', ')}
@@ -778,156 +782,26 @@ export function ShoppingHome({
     );
   };
 
-  const openFromListMenu = (href: Parameters<typeof router.push>[0]) => {
-    setListMenuOpen(false);
-    router.push(href);
-  };
-  const tabButtonStyle = (selected: boolean) => [
-    styles.tab,
-    selected ? { backgroundColor: colors.accent } : null,
-  ];
-  const tabTextStyle = (selected: boolean) => [
-    styles.tabText,
-    { color: selected ? colors.background : colors.text },
-  ];
-  // Primary navigation: the two in-place sections, recipes, and one menu for list actions.
-  const tabs = (
-    <View style={styles.tabsRow}>
-      <View
-        accessibilityRole="tablist"
-        testID="home-section-tabs"
-        style={[styles.tabs, { backgroundColor: colors.card, borderColor: colors.border }]}
-      >
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'shopping' }}
-          testID="home-tab-shopping"
-          onPress={() => setActiveTab('shopping')}
-          style={tabButtonStyle(activeTab === 'shopping')}
-        >
-          <Text numberOfLines={1} style={tabTextStyle(activeTab === 'shopping')}>
-            {strings.pl.shopping.shoppingTab} ({items.filter((item) => !item.is_purchased).length})
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'todo' }}
-          testID="home-tab-todo"
-          onPress={() => setActiveTab('todo')}
-          style={tabButtonStyle(activeTab === 'todo')}
-        >
-          <Text numberOfLines={1} style={tabTextStyle(activeTab === 'todo')}>
-            {strings.pl.shopping.todoTab} ({todoCount})
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          testID="navigation-recipes"
-          onPress={() => router.push(recipeRoutes.list(household.id))}
-          style={({ pressed }) => [...tabButtonStyle(false), { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Text numberOfLines={1} style={tabTextStyle(false)}>
-            {strings.pl.recipes.open}
-          </Text>
-        </Pressable>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={text.listMenu}
-        accessibilityState={{ expanded: listMenuOpen }}
-        testID="shopping-list-menu-button"
-        onPress={() => setListMenuOpen(true)}
-        style={({ pressed }) => [
-          styles.menuButton,
-          { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-        ]}
-      >
-        <SymbolView
-          name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
-          tintColor={colors.text}
-          size={22}
-        />
-      </Pressable>
-    </View>
-  );
-  // Secondary list actions. Deleting the list lives in the list settings danger zone.
-  const listMenu = (
-    <Modal
-      visible={listMenuOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setListMenuOpen(false)}
-    >
-      <Pressable
-        accessibilityLabel={text.closeMenu}
-        testID="shopping-list-menu-backdrop"
-        onPress={() => setListMenuOpen(false)}
-        style={styles.menuBackdrop}
-      >
-        <Pressable
-          testID="shopping-list-menu"
-          onPress={(event) => event.stopPropagation()}
-          style={[styles.menuSheet, { backgroundColor: colors.card }]}
-        >
-          <Text numberOfLines={1} style={[styles.menuTitle, { color: colors.secondaryText }]}>
-            {household.name}
-          </Text>
-          {isOwner ? (
-            <Pressable
-              accessibilityRole="button"
-              testID="shopping-menu-share"
-              onPress={() => openFromListMenu(householdRoutes.invitations(household.id))}
-              style={({ pressed }) => [
-                styles.menuItem,
-                { borderBottomColor: colors.border, opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <SymbolView
-                name={{ ios: 'person.badge.plus', android: 'person_add', web: 'person_add' }}
-                tintColor={colors.accent}
-                size={20}
-              />
-              <Text style={[styles.menuItemText, { color: colors.text }]}>{text.shareList}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            testID="shopping-menu-settings"
-            onPress={() => openFromListMenu(householdRoutes.details(household.id))}
-            style={({ pressed }) => [
-              styles.menuItem,
-              { borderBottomColor: colors.border, opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <SymbolView
-              name={{ ios: 'gearshape', android: 'settings', web: 'settings' }}
-              tintColor={colors.accent}
-              size={20}
-            />
-            <Text style={[styles.menuItemText, { color: colors.text }]}>{text.listSettings}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            testID="shopping-list-menu-close"
-            onPress={() => setListMenuOpen(false)}
-            style={({ pressed }) => [styles.menuClose, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Text style={[styles.menuCloseText, { color: colors.secondaryText }]}>
-              {text.closeMenu}
-            </Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
+  const bottomNav = (
+    <AppBottomNav
+      active={activeTab}
+      counts={{
+        shopping: items.filter((item) => !item.is_purchased).length,
+        todo: todoCount,
+      }}
+      onSelectHomeSection={selectSection}
+    />
   );
   if (!list) {
     return (
       <SafeAreaView
         testID="shopping-screen"
+        edges={['top', 'left', 'right']}
         style={[styles.safeArea, { backgroundColor: colors.background }]}
       >
         <ScrollView
           testID="shopping-list"
+          style={styles.body}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
@@ -937,12 +811,9 @@ export function ShoppingHome({
             noActiveListLabel={text.noActiveList}
             title={text.title}
             signOutLabel={text.signOut}
-            switchListLabel={text.switchList}
             isSigningOut={isSigningOut}
             onSignOut={onSignOut}
-            onSwitchList={() => router.push(householdRoutes.root())}
           />
-          {tabs}
           <View style={activeTab === 'shopping' ? undefined : styles.hiddenSection}>
             <View
               testID="shopping-no-list-state"
@@ -1000,7 +871,7 @@ export function ShoppingHome({
             </Text>
           ) : null}
         </ScrollView>
-        {listMenu}
+        {bottomNav}
       </SafeAreaView>
     );
   }
@@ -1008,495 +879,501 @@ export function ShoppingHome({
   return (
     <SafeAreaView
       testID="shopping-screen"
+      edges={['top', 'left', 'right']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
-      <ScrollView
-        testID="shopping-list"
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <ShoppingAppHeader
-          userName={displayName}
-          activeListName={household.name}
-          noActiveListLabel={text.noActiveList}
-          title={text.title}
-          signOutLabel={text.signOut}
-          switchListLabel={text.switchList}
-          isSigningOut={isSigningOut}
-          onSignOut={onSignOut}
-          onSwitchList={() => router.push(householdRoutes.root())}
-        />
-        {tabs}
-        <View style={activeTab === 'shopping' ? undefined : styles.hiddenSection}>
-          {realtimeStatus !== 'connected' ? (
-            <View
-              testID="shopping-realtime-status"
-              style={[styles.syncStatus, { backgroundColor: colors.accentSoft }]}
-            >
+      <View style={styles.body}>
+        <ScrollView
+          testID="shopping-list"
+          contentContainerStyle={[styles.content, pendingDelete ? styles.contentWithUndo : null]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <ShoppingAppHeader
+            userName={displayName}
+            activeListName={household.name}
+            noActiveListLabel={text.noActiveList}
+            title={text.title}
+            signOutLabel={text.signOut}
+            isSigningOut={isSigningOut}
+            onSignOut={onSignOut}
+          />
+          <View style={activeTab === 'shopping' ? undefined : styles.hiddenSection}>
+            {realtimeStatus !== 'connected' ? (
               <View
-                style={[
-                  styles.syncDot,
-                  { backgroundColor: realtimeStatus === 'error' ? '#B42318' : colors.accent },
-                ]}
-              />
-              <Text
-                testID={
-                  realtimeStatus === 'error'
-                    ? 'shopping-realtime-error-message'
-                    : 'shopping-realtime-connecting-message'
-                }
-                style={[styles.syncText, { color: colors.text }]}
+                testID="shopping-realtime-status"
+                style={[styles.syncStatus, { backgroundColor: colors.accentSoft }]}
               >
-                {realtimeStatus === 'error' ? text.realtimeError : text.realtimeConnecting}
-              </Text>
-              {realtimeStatus === 'error' ? (
-                <Pressable
-                  accessibilityRole="button"
-                  testID="shopping-realtime-retry-button"
-                  onPress={() => {
-                    setRealtimeStatus('connecting');
-                    setRealtimeAttempt((attempt) => attempt + 1);
-                  }}
+                <View
+                  style={[
+                    styles.syncDot,
+                    { backgroundColor: realtimeStatus === 'error' ? '#B42318' : colors.accent },
+                  ]}
+                />
+                <Text
+                  testID={
+                    realtimeStatus === 'error'
+                      ? 'shopping-realtime-error-message'
+                      : 'shopping-realtime-connecting-message'
+                  }
+                  style={[styles.syncText, { color: colors.text }]}
                 >
-                  <Text style={[styles.syncRetry, { color: colors.accent }]}>
-                    {text.realtimeRetry}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
-
-          <View
-            style={[styles.addCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <View style={styles.addRow}>
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    accessibilityLabel={text.addLabel}
-                    testID="shopping-product-input"
-                    autoCapitalize="sentences"
-                    editable={!addMutation.isPending}
-                    maxLength={120}
-                    onBlur={onBlur}
-                    onChangeText={(name) => {
-                      onChange(name);
-                      setValue(
-                        'category',
-                        categoryAfterProductNameChange(
-                          name,
-                          getValues('category') ?? null,
-                          categoryManuallyOverridden.current,
-                        ),
-                        { shouldDirty: true, shouldValidate: true },
-                      );
+                  {realtimeStatus === 'error' ? text.realtimeError : text.realtimeConnecting}
+                </Text>
+                {realtimeStatus === 'error' ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    testID="shopping-realtime-retry-button"
+                    onPress={() => {
+                      setRealtimeStatus('connecting');
+                      setRealtimeAttempt((attempt) => attempt + 1);
                     }}
-                    placeholder={text.addPlaceholder}
-                    placeholderTextColor={colors.secondaryText}
-                    returnKeyType="next"
-                    style={[
-                      styles.nameInput,
-                      {
-                        backgroundColor: colors.background,
-                        borderColor: errors.name ? '#B42318' : colors.border,
-                        color: colors.text,
-                      },
-                    ]}
-                    value={value}
-                  />
-                )}
-              />
-            </View>
-            <View style={styles.selectorsRow}>
-              <Controller
-                control={control}
-                name="quantity"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View style={styles.selectorColumn}>
-                    <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
-                      {text.quantityLabel}
+                  >
+                    <Text style={[styles.syncRetry, { color: colors.accent }]}>
+                      {text.realtimeRetry}
                     </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+
+            <View
+              style={[styles.addCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={styles.addRow}>
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
-                      accessibilityLabel={text.quantityLabel}
-                      testID="shopping-quantity-input"
+                      accessibilityLabel={text.addLabel}
+                      testID="shopping-product-input"
+                      autoCapitalize="sentences"
                       editable={!addMutation.isPending}
-                      keyboardType="decimal-pad"
+                      maxLength={120}
                       onBlur={onBlur}
-                      onChangeText={onChange}
-                      placeholder={text.quantityPlaceholder}
+                      onChangeText={(name) => {
+                        onChange(name);
+                        setValue(
+                          'category',
+                          categoryAfterProductNameChange(
+                            name,
+                            getValues('category') ?? null,
+                            categoryManuallyOverridden.current,
+                          ),
+                          { shouldDirty: true, shouldValidate: true },
+                        );
+                      }}
+                      placeholder={text.addPlaceholder}
                       placeholderTextColor={colors.secondaryText}
-                      returnKeyType="done"
+                      returnKeyType="next"
                       style={[
-                        styles.quantityInput,
+                        styles.nameInput,
                         {
                           backgroundColor: colors.background,
-                          borderColor: errors.quantity ? '#B42318' : colors.border,
+                          borderColor: errors.name ? '#B42318' : colors.border,
                           color: colors.text,
                         },
                       ]}
                       value={value}
-                      onSubmitEditing={() => void handleSubmit(addItem)()}
                     />
-                  </View>
-                )}
-              />
-              <Controller
-                control={control}
-                name="unit"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.selectorColumn}>
-                    <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
-                      {text.unitLabel}
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={text.unitLabel}
-                      accessibilityState={{ expanded: showUnitOptions }}
-                      testID="shopping-unit-select"
-                      disabled={addMutation.isPending}
-                      onPress={() => setShowUnitOptions((visible) => !visible)}
-                      style={[
-                        styles.selectorButton,
-                        {
-                          backgroundColor: colors.background,
-                          borderColor: showUnitOptions ? colors.accent : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.selectorValue, { color: colors.text }]}
-                        numberOfLines={1}
+                  )}
+                />
+              </View>
+              <View style={styles.selectorsRow}>
+                <Controller
+                  control={control}
+                  name="quantity"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View style={styles.selectorColumn}>
+                      <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
+                        {text.quantityLabel}
+                      </Text>
+                      <TextInput
+                        accessibilityLabel={text.quantityLabel}
+                        testID="shopping-quantity-input"
+                        editable={!addMutation.isPending}
+                        keyboardType="decimal-pad"
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        placeholder={text.quantityPlaceholder}
+                        placeholderTextColor={colors.secondaryText}
+                        returnKeyType="done"
+                        style={[
+                          styles.quantityInput,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: errors.quantity ? '#B42318' : colors.border,
+                            color: colors.text,
+                          },
+                        ]}
+                        value={value}
+                        onSubmitEditing={() => void handleSubmit(addItem)()}
+                      />
+                    </View>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="unit"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.selectorColumn}>
+                      <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
+                        {text.unitLabel}
+                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={text.unitLabel}
+                        accessibilityState={{ expanded: showUnitOptions }}
+                        testID="shopping-unit-select"
+                        disabled={addMutation.isPending}
+                        onPress={() => setShowUnitOptions((visible) => !visible)}
+                        style={[
+                          styles.selectorButton,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: showUnitOptions ? colors.accent : colors.border,
+                          },
+                        ]}
                       >
-                        {value ?? text.noUnit}
-                      </Text>
-                      <Text style={[styles.selectorChange, { color: colors.accent }]}>
-                        {showUnitOptions ? '‹' : '⌄'}
-                      </Text>
-                    </Pressable>
-                    {showUnitOptions ? (
-                      <View style={styles.unitOptions}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: value === null }}
-                          testID="shopping-unit-option-none"
-                          disabled={addMutation.isPending}
-                          onPress={() => {
-                            onChange(null);
-                            setShowUnitOptions(false);
-                          }}
-                          style={[
-                            styles.unitOption,
-                            {
-                              backgroundColor:
-                                value === null ? colors.accentSoft : colors.background,
-                              borderColor: value === null ? colors.accent : colors.border,
-                            },
-                          ]}
+                        <Text
+                          style={[styles.selectorValue, { color: colors.text }]}
+                          numberOfLines={1}
                         >
-                          <Text
+                          {value ?? text.noUnit}
+                        </Text>
+                        <Text style={[styles.selectorChange, { color: colors.accent }]}>
+                          {showUnitOptions ? '‹' : '⌄'}
+                        </Text>
+                      </Pressable>
+                      {showUnitOptions ? (
+                        <View style={styles.unitOptions}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: value === null }}
+                            testID="shopping-unit-option-none"
+                            disabled={addMutation.isPending}
+                            onPress={() => {
+                              onChange(null);
+                              setShowUnitOptions(false);
+                            }}
                             style={[
-                              styles.unitOptionText,
-                              { color: value === null ? colors.accent : colors.text },
+                              styles.unitOption,
+                              {
+                                backgroundColor:
+                                  value === null ? colors.accentSoft : colors.background,
+                                borderColor: value === null ? colors.accent : colors.border,
+                              },
                             ]}
                           >
-                            {text.noUnit}
-                          </Text>
-                        </Pressable>
-                        {shoppingUnits.map((unit) => {
-                          const selected = value === unit;
-                          return (
-                            <Pressable
-                              key={unit}
-                              accessibilityRole="button"
-                              accessibilityLabel={`${text.unitLabel}: ${unit}`}
-                              accessibilityState={{ selected }}
-                              testID={`shopping-unit-option-${unit}`}
-                              disabled={addMutation.isPending}
-                              onPress={() => {
-                                onChange(unit);
-                                setShowUnitOptions(false);
-                              }}
+                            <Text
                               style={[
-                                styles.unitOption,
-                                {
-                                  backgroundColor: selected ? colors.accentSoft : colors.background,
-                                  borderColor: selected ? colors.accent : colors.border,
-                                },
+                                styles.unitOptionText,
+                                { color: value === null ? colors.accent : colors.text },
                               ]}
                             >
-                              <Text
+                              {text.noUnit}
+                            </Text>
+                          </Pressable>
+                          {shoppingUnits.map((unit) => {
+                            const selected = value === unit;
+                            return (
+                              <Pressable
+                                key={unit}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${text.unitLabel}: ${unit}`}
+                                accessibilityState={{ selected }}
+                                testID={`shopping-unit-option-${unit}`}
+                                disabled={addMutation.isPending}
+                                onPress={() => {
+                                  onChange(unit);
+                                  setShowUnitOptions(false);
+                                }}
                                 style={[
-                                  styles.unitOptionText,
-                                  { color: selected ? colors.accent : colors.text },
+                                  styles.unitOption,
+                                  {
+                                    backgroundColor: selected
+                                      ? colors.accentSoft
+                                      : colors.background,
+                                    borderColor: selected ? colors.accent : colors.border,
+                                  },
                                 ]}
                               >
-                                {unit}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    ) : null}
-                  </View>
-                )}
-              />
-              <Controller
-                control={control}
-                name="category"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.selectorColumn}>
-                    <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
-                      {text.categoryLabel}
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${text.categoryLabel}: ${getShoppingCategory(value).label}`}
-                      accessibilityState={{ expanded: showCategoryOptions }}
-                      testID="shopping-category-select"
-                      disabled={addMutation.isPending}
-                      onPress={() => setShowCategoryOptions((visible) => !visible)}
-                      style={[
-                        styles.selectorButton,
-                        {
-                          backgroundColor: colors.background,
-                          borderColor: showCategoryOptions ? colors.accent : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.selectorValue, { color: colors.text }]}
-                        numberOfLines={1}
-                      >
-                        {getShoppingCategory(value).emoji} {getShoppingCategory(value).label}
-                      </Text>
-                      <Text style={[styles.selectorChange, { color: colors.accent }]}>
-                        {showCategoryOptions ? '‹' : '›'}
-                      </Text>
-                    </Pressable>
-                    {showCategoryOptions ? (
-                      <View style={styles.categoryOptions}>
-                        {shoppingCategories.map((category) => {
-                          const selected = getShoppingCategory(value).id === category.id;
-                          return (
-                            <Pressable
-                              key={category.id}
-                              accessibilityRole="button"
-                              accessibilityLabel={`${category.emoji} ${category.label}`}
-                              accessibilityState={{ selected }}
-                              testID={`shopping-category-option-${category.id}`}
-                              disabled={addMutation.isPending}
-                              onPress={() => {
-                                categoryManuallyOverridden.current = true;
-                                onChange(category.id);
-                                setShowCategoryOptions(false);
-                              }}
-                              style={[
-                                styles.categoryOption,
-                                {
-                                  backgroundColor: selected ? colors.accentSoft : colors.background,
-                                  borderColor: selected ? colors.accent : colors.border,
-                                },
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.categoryOptionText,
-                                  { color: selected ? colors.accent : colors.text },
-                                ]}
-                              >
-                                {category.emoji} {category.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    ) : null}
-                  </View>
-                )}
-              />
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: addMutation.isPending }}
-              testID="shopping-add-button"
-              disabled={addMutation.isPending}
-              onPress={() => void handleSubmit(addItem)()}
-              style={({ pressed }) => [
-                styles.addButton,
-                {
-                  backgroundColor: colors.accent,
-                  opacity: pressed || addMutation.isPending ? 0.7 : 1,
-                },
-              ]}
-            >
-              {addMutation.isPending ? (
-                <ActivityIndicator
-                  color={colorScheme === 'dark' ? '#151915' : '#FFFFFF'}
-                  size="small"
+                                <Text
+                                  style={[
+                                    styles.unitOptionText,
+                                    { color: selected ? colors.accent : colors.text },
+                                  ]}
+                                >
+                                  {unit}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
                 />
-              ) : null}
-              <Text
-                style={[
-                  styles.addButtonText,
-                  { color: colorScheme === 'dark' ? '#151915' : '#FFFFFF' },
-                ]}
-              >
-                {addMutation.isPending ? text.adding : `+ ${text.addButton}`}
-              </Text>
-            </Pressable>
-            {errors.name?.message ? (
-              <Text
-                accessibilityRole="alert"
-                testID="shopping-product-error-message"
-                style={styles.error}
-              >
-                {errors.name.message}
-              </Text>
-            ) : null}
-            {errors.quantity?.message ? (
-              <Text
-                accessibilityRole="alert"
-                testID="shopping-quantity-error-message"
-                style={styles.error}
-              >
-                {errors.quantity.message}
-              </Text>
-            ) : null}
-            {actionError ? (
-              <Text
-                accessibilityRole="alert"
-                testID="shopping-action-error-message"
-                style={styles.error}
-              >
-                {actionError}
-              </Text>
-            ) : null}
-          </View>
-
-          {itemsQuery.isPending ? (
-            <View testID="shopping-loading" style={styles.loading}>
-              <ActivityIndicator color={colors.accent} size="small" />
-              <Text style={[styles.message, { color: colors.secondaryText }]}>{text.loading}</Text>
-            </View>
-          ) : itemsQuery.isError ? (
-            <View style={styles.queryError}>
-              <Text
-                accessibilityRole="alert"
-                testID="shopping-load-error-message"
-                style={[styles.message, { color: colors.text }]}
-              >
-                {text.loadError}
-              </Text>
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.selectorColumn}>
+                      <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
+                        {text.categoryLabel}
+                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`${text.categoryLabel}: ${getShoppingCategory(value).label}`}
+                        accessibilityState={{ expanded: showCategoryOptions }}
+                        testID="shopping-category-select"
+                        disabled={addMutation.isPending}
+                        onPress={() => setShowCategoryOptions((visible) => !visible)}
+                        style={[
+                          styles.selectorButton,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: showCategoryOptions ? colors.accent : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.selectorValue, { color: colors.text }]}
+                          numberOfLines={1}
+                        >
+                          {getShoppingCategory(value).emoji} {getShoppingCategory(value).label}
+                        </Text>
+                        <Text style={[styles.selectorChange, { color: colors.accent }]}>
+                          {showCategoryOptions ? '‹' : '›'}
+                        </Text>
+                      </Pressable>
+                      {showCategoryOptions ? (
+                        <View style={styles.categoryOptions}>
+                          {shoppingCategories.map((category) => {
+                            const selected = getShoppingCategory(value).id === category.id;
+                            return (
+                              <Pressable
+                                key={category.id}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${category.emoji} ${category.label}`}
+                                accessibilityState={{ selected }}
+                                testID={`shopping-category-option-${category.id}`}
+                                disabled={addMutation.isPending}
+                                onPress={() => {
+                                  categoryManuallyOverridden.current = true;
+                                  onChange(category.id);
+                                  setShowCategoryOptions(false);
+                                }}
+                                style={[
+                                  styles.categoryOption,
+                                  {
+                                    backgroundColor: selected
+                                      ? colors.accentSoft
+                                      : colors.background,
+                                    borderColor: selected ? colors.accent : colors.border,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.categoryOptionText,
+                                    { color: selected ? colors.accent : colors.text },
+                                  ]}
+                                >
+                                  {category.emoji} {category.label}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
+                />
+              </View>
               <Pressable
                 accessibilityRole="button"
-                testID="shopping-retry-button"
-                onPress={() => void itemsQuery.refetch()}
+                accessibilityState={{ disabled: addMutation.isPending }}
+                testID="shopping-add-button"
+                disabled={addMutation.isPending}
+                onPress={() => void handleSubmit(addItem)()}
+                style={({ pressed }) => [
+                  styles.addButton,
+                  {
+                    backgroundColor: colors.accent,
+                    opacity: pressed || addMutation.isPending ? 0.7 : 1,
+                  },
+                ]}
               >
-                <Text style={[styles.syncRetry, { color: colors.accent }]}>{text.retry}</Text>
+                {addMutation.isPending ? (
+                  <ActivityIndicator
+                    color={colorScheme === 'dark' ? '#151915' : '#FFFFFF'}
+                    size="small"
+                  />
+                ) : null}
+                <Text
+                  style={[
+                    styles.addButtonText,
+                    { color: colorScheme === 'dark' ? '#151915' : '#FFFFFF' },
+                  ]}
+                >
+                  {addMutation.isPending ? text.adding : `+ ${text.addButton}`}
+                </Text>
               </Pressable>
-            </View>
-          ) : (
-            <>
-              {itemsToBuy.length > 0 ? (
-                itemsToBuy.map(({ category, items: categoryItems }) => (
-                  <View key={category.id} testID={`shopping-category-${category.id}`}>
-                    <Text
-                      accessibilityRole="header"
-                      style={[styles.categoryTitle, { color: colors.text }]}
-                    >
-                      {category.emoji} {category.label}
-                    </Text>
-                    <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
-                      {categoryItems.map(renderItem)}
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
-                  <Text
-                    testID="shopping-empty-state"
-                    style={[styles.empty, { color: colors.secondaryText }]}
-                  >
-                    {text.empty}
-                  </Text>
-                </View>
-              )}
-
-              {purchasedItems.length > 0 ? (
-                <>
-                  <View style={styles.sectionHeaderRow}>
-                    <Text
-                      accessibilityRole="header"
-                      style={[styles.sectionTitle, { color: colors.text }]}
-                    >
-                      {text.purchased} ({purchasedItems.length})
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      testID="shopping-clear-completed-button"
-                      onPress={() =>
-                        scheduleDelete(
-                          purchasedItems.map((item) => item.id),
-                          text.undoDeletedPurchased(purchasedItems.length),
-                        )
-                      }
-                      style={({ pressed }) => [
-                        styles.deletePurchasedButton,
-                        { opacity: pressed ? 0.6 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.deletePurchasedText, { color: colors.accent }]}>
-                        {text.deletePurchased}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
-                    {purchasedItems.map(renderItem)}
-                  </View>
-                </>
+              {errors.name?.message ? (
+                <Text
+                  accessibilityRole="alert"
+                  testID="shopping-product-error-message"
+                  style={styles.error}
+                >
+                  {errors.name.message}
+                </Text>
               ) : null}
-            </>
-          )}
-        </View>
-        <TodoSection
-          key={household.id}
-          householdId={household.id}
-          userId={userId}
-          visible={activeTab === 'todo'}
-        />
+              {errors.quantity?.message ? (
+                <Text
+                  accessibilityRole="alert"
+                  testID="shopping-quantity-error-message"
+                  style={styles.error}
+                >
+                  {errors.quantity.message}
+                </Text>
+              ) : null}
+              {actionError ? (
+                <Text
+                  accessibilityRole="alert"
+                  testID="shopping-action-error-message"
+                  style={styles.error}
+                >
+                  {actionError}
+                </Text>
+              ) : null}
+            </View>
 
-        {signOutError ? (
-          <Text
-            accessibilityRole="alert"
-            testID="profile-logout-error-message"
-            style={[styles.error, styles.signOutError]}
+            {itemsQuery.isPending ? (
+              <View testID="shopping-loading" style={styles.loading}>
+                <ActivityIndicator color={colors.accent} size="small" />
+                <Text style={[styles.message, { color: colors.secondaryText }]}>
+                  {text.loading}
+                </Text>
+              </View>
+            ) : itemsQuery.isError ? (
+              <View style={styles.queryError}>
+                <Text
+                  accessibilityRole="alert"
+                  testID="shopping-load-error-message"
+                  style={[styles.message, { color: colors.text }]}
+                >
+                  {text.loadError}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  testID="shopping-retry-button"
+                  onPress={() => void itemsQuery.refetch()}
+                >
+                  <Text style={[styles.syncRetry, { color: colors.accent }]}>{text.retry}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {itemsToBuy.length > 0 ? (
+                  itemsToBuy.map(({ category, items: categoryItems }) => (
+                    <View key={category.id} testID={`shopping-category-${category.id}`}>
+                      <Text
+                        accessibilityRole="header"
+                        style={[styles.categoryTitle, { color: colors.text }]}
+                      >
+                        {category.emoji} {category.label}
+                      </Text>
+                      <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
+                        {categoryItems.map(renderItem)}
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
+                    <Text
+                      testID="shopping-empty-state"
+                      style={[styles.empty, { color: colors.secondaryText }]}
+                    >
+                      {text.empty}
+                    </Text>
+                  </View>
+                )}
+
+                {purchasedItems.length > 0 ? (
+                  <>
+                    <View style={styles.sectionHeaderRow}>
+                      <Text
+                        accessibilityRole="header"
+                        style={[styles.sectionTitle, { color: colors.text }]}
+                      >
+                        {text.purchased} ({purchasedItems.length})
+                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        testID="shopping-clear-completed-button"
+                        onPress={() =>
+                          scheduleDelete(
+                            purchasedItems.map((item) => item.id),
+                            text.undoDeletedPurchased(purchasedItems.length),
+                          )
+                        }
+                        style={({ pressed }) => [
+                          styles.deletePurchasedButton,
+                          { opacity: pressed ? 0.6 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.deletePurchasedText, { color: colors.accent }]}>
+                          {text.deletePurchased}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
+                      {purchasedItems.map(renderItem)}
+                    </View>
+                  </>
+                ) : null}
+              </>
+            )}
+          </View>
+          <TodoSection
+            key={household.id}
+            householdId={household.id}
+            userId={userId}
+            visible={activeTab === 'todo'}
+          />
+
+          {signOutError ? (
+            <Text
+              accessibilityRole="alert"
+              testID="profile-logout-error-message"
+              style={[styles.error, styles.signOutError]}
+            >
+              {signOutError}
+            </Text>
+          ) : null}
+        </ScrollView>
+        {pendingDelete ? (
+          <View
+            accessibilityLiveRegion="polite"
+            testID="shopping-undo-bar"
+            style={[styles.undoBar, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
-            {signOutError}
-          </Text>
+            <Text numberOfLines={1} style={[styles.undoText, { color: colors.text }]}>
+              {pendingDelete.message}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              testID="shopping-undo-delete-button"
+              onPress={undoDelete}
+              hitSlop={8}
+            >
+              <Text style={[styles.undoAction, { color: colors.accent }]}>{text.undoAction}</Text>
+            </Pressable>
+          </View>
         ) : null}
-      </ScrollView>
-      {pendingDelete ? (
-        <View
-          accessibilityLiveRegion="polite"
-          testID="shopping-undo-bar"
-          style={[styles.undoBar, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Text numberOfLines={1} style={[styles.undoText, { color: colors.text }]}>
-            {pendingDelete.message}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            testID="shopping-undo-delete-button"
-            onPress={undoDelete}
-            hitSlop={8}
-          >
-            <Text style={[styles.undoAction, { color: colors.accent }]}>{text.undoAction}</Text>
-          </Pressable>
-        </View>
-      ) : null}
-      {listMenu}
+      </View>
+      {bottomNav}
     </SafeAreaView>
   );
 }
@@ -1504,6 +1381,12 @@ export function ShoppingHome({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  body: {
+    flex: 1,
+  },
+  contentWithUndo: {
+    paddingBottom: 96,
   },
   undoBar: {
     position: 'absolute',
@@ -1535,74 +1418,6 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     paddingBottom: Spacing.six,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginBottom: Spacing.three,
-  },
-  tabs: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    gap: Spacing.one,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: Spacing.one,
-  },
-  tab: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
-    paddingHorizontal: Spacing.one,
-  },
-  tabText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  menuButton: {
-    width: 48,
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-  },
-  menuSheet: {
-    width: '100%',
-    maxWidth: 560,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.four,
-  },
-  menuTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: Spacing.one,
-  },
-  menuItem: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  menuItemText: { fontSize: 16, fontWeight: '500' },
-  menuClose: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.two,
-  },
-  menuCloseText: { fontSize: 15, fontWeight: '600' },
   primaryButton: {
     width: '100%',
     minHeight: 48,

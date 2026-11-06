@@ -25,6 +25,10 @@ const authRouting = readFileSync(
   resolve(appRoot, '../../features/auth/routing.ts'),
   'utf8',
 ).toLowerCase();
+const bottomNav = readFileSync(
+  resolve(appRoot, '../../components/AppBottomNav.tsx'),
+  'utf8',
+).toLowerCase();
 const recipeRoutes = readFileSync(
   resolve(appRoot, '../../features/recipes/routes.ts'),
   'utf8',
@@ -32,11 +36,14 @@ const recipeRoutes = readFileSync(
 
 describe('recipe navigation contract', () => {
   it('keeps the recipes entry visible on the shopping screen', () => {
-    expect(shopping).toContain('strings.pl.recipes.open');
+    expect(shopping).toContain('<appbottomnav');
+    expect(bottomNav).toContain("label: strings.pl.navigation.recipes");
+    expect(bottomNav).toContain("testid: 'navigation-recipes'");
   });
 
   it('opens the separate recipes route through Expo Router', () => {
-    expect(shopping).toContain('router.push(reciperoutes.list(household.id))');
+    expect(bottomNav).toContain("recipes: '/recipes'");
+    expect(bottomNav).toContain('router.replace(item.href)');
     expect(recipeRoutes).toContain("pathname: '/recipes'");
     expect(recipeRoutes).not.toContain("pathname: '/recipes/index'");
     expect(shopping).not.toContain('router.push(reciperoutes.details');
@@ -53,8 +60,9 @@ describe('recipe navigation contract', () => {
     );
   });
 
-  it('uses the normal back stack from the recipes list to shopping', () => {
-    expect(recipeList).toContain('onback={() => router.back()}');
+  it('shows the recipes list as a top-level section with the bottom navigation', () => {
+    expect(recipeList).toContain('section="recipes"');
+    expect(recipeList).not.toContain('onback={() => router.back()}');
   });
 
   it('opens recipe details from the household recipe list', () => {

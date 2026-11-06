@@ -10,6 +10,7 @@ import {
   HouseholdMessage,
 } from '@/features/households/HouseholdUI';
 import { useHouseholds } from '@/features/households/useHouseholds';
+import { appSectionHrefs } from '@/components/AppBottomNav';
 import { strings } from '@/localization';
 import { Colors } from '@/constants/theme';
 
@@ -24,7 +25,9 @@ export default function NewHouseholdRoute() {
     await queryClient.invalidateQueries({
       queryKey: householdQueryKeys.memberships(userId ?? ''),
     });
-    router.back();
+    // The new list is now active: open its shopping section and clear the setup screens.
+    router.dismissAll();
+    router.replace(appSectionHrefs.shopping);
   };
 
   return (

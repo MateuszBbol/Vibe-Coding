@@ -62,7 +62,7 @@ export default function RecipesRoute() {
   };
 
   return (
-    <RecipeFrame title={text.title} testID="recipes-list-screen" onBack={() => router.back()}>
+    <RecipeFrame title={text.title} testID="recipes-list-screen" section="recipes">
       {householdQuery.isPending || Boolean(household && recipesQuery.isPending) ? (
         <ActivityIndicator
           accessibilityLabel={text.loading}

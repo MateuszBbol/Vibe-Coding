@@ -19,6 +19,9 @@ export type ShoppingItem = {
   updated_at: string;
 };
 
+// PostgREST: the requested function does not exist in the schema cache.
+const MISSING_RPC_ERROR_CODE = 'PGRST202';
+
 function requireSupabase() {
   if (!supabase) {
     throw new Error('Brak konfiguracji Supabase.');
@@ -97,9 +100,28 @@ export async function addShoppingItem(
   quantity: number | null,
   unit: ShoppingUnit | null,
   category: ShoppingCategoryId | null,
-): Promise<void> {
+): Promise<{ merged: boolean }> {
   const client = requireSupabase();
-  const { error } = await client.from('shopping_items').insert({
+  // Same merge rule as recipe ingredients: same name and unit on an unpurchased row.
+  const { data, error } = await client.rpc('add_shopping_item', {
+    target_list_id: listId,
+    target_name: name,
+    target_quantity: quantity,
+    target_unit: unit,
+    target_category: category,
+  });
+
+  if (!error) {
+    const row = Array.isArray(data) ? data[0] : data;
+    return { merged: Boolean(row?.merged) };
+  }
+  if (error.code !== MISSING_RPC_ERROR_CODE) {
+    throw error;
+  }
+
+  // The database does not have migration 202611060001 yet: keep adding products
+  // (without merging) instead of breaking the main action of the app.
+  const { error: insertError } = await client.from('shopping_items').insert({
     list_id: listId,
     name,
     quantity,
@@ -107,10 +129,10 @@ export async function addShoppingItem(
     category,
     created_by: userId,
   });
-
-  if (error) {
-    throw error;
+  if (insertError) {
+    throw insertError;
   }
+  return { merged: false };
 }
 
 export async function updateShoppingItem(

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nasze Zakupy",
+    "name": "Home",
     "slug": "nasze-zakupy",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,6 +24,8 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "name": "Home",
+      "shortName": "Home",
       "output": "single",
       "favicon": "./assets/images/icon.png"
     },

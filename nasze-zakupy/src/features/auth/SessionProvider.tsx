@@ -101,7 +101,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
     const { error } = await supabase.auth.signOut();
     if (error) {
-      throw error;
+      // The server sign-out can fail offline; still end the session on this device so the
+      // user is never stuck signed in. The refresh token then expires on the server.
+      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+      if (localError) {
+        throw error;
+      }
     }
   }, []);
 
