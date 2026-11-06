@@ -47,11 +47,13 @@ export function HouseholdNavigationRow({
   description,
   onPress,
   testID,
+  showChevron = true,
 }: {
   title: string;
   description?: string;
   onPress: () => void;
   testID?: string;
+  showChevron?: boolean;
 }) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
@@ -76,7 +78,7 @@ export function HouseholdNavigationRow({
           <Text style={[styles.description, { color: colors.secondaryText }]}>{description}</Text>
         ) : null}
       </View>
-      <Text style={[styles.chevron, { color: colors.accent }]}>›</Text>
+      {showChevron ? <Text style={[styles.chevron, { color: colors.accent }]}>›</Text> : null}
     </Pressable>
   );
 }

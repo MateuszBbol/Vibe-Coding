@@ -37,7 +37,7 @@ const recipeRoutes = readFileSync(
 describe('recipe navigation contract', () => {
   it('keeps the recipes entry visible on the shopping screen', () => {
     expect(shopping).toContain('<appbottomnav');
-    expect(bottomNav).toContain("label: strings.pl.navigation.recipes");
+    expect(bottomNav).toContain('label: strings.pl.navigation.recipes');
     expect(bottomNav).toContain("testid: 'navigation-recipes'");
   });
 
@@ -70,10 +70,14 @@ describe('recipe navigation contract', () => {
   });
 
   it('returns from recipe details to the household recipe list', () => {
+    // After deleting a recipe the screen goes back to the list.
     expect(recipeDetails).toContain('router.dismissto(');
     expect(recipeDetails).toContain('reciperoutes.list(targethouseholdid)');
     expect(recipeDetails).toContain(" : '/recipes'");
-    expect(recipeDetails).toContain('onback={returntorecipes}');
+    // No Back button at the top; the bottom navigation leads back to the recipes.
+    expect(recipeDetails).not.toContain('onback=');
+    expect(recipeDetails).toContain('section="recipes"');
+    expect(recipeDetails).toContain('nestednav');
   });
 
   it('opens a separate create form from the recipes list', () => {

@@ -215,9 +215,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
-  dateColumn: { flexShrink: 1, gap: Spacing.one },
+  // Caption centred over the calendar button.
+  dateColumn: { flexShrink: 1, alignItems: 'center', gap: Spacing.one },
   dateControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  caption: { fontSize: 14, fontWeight: '600' },
+  caption: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
   accessory: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
   field: {
     flexShrink: 1,

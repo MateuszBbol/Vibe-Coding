@@ -346,6 +346,38 @@ describe('latest layout requests', () => {
   });
 });
 
+describe('recipe page and list overview requests', () => {
+  const recipeDetails = readFileSync(resolve(root, 'app/(app)/recipes/[recipeId].tsx'), 'utf8');
+  const overview = readFileSync(resolve(root, 'app/(app)/households/index.tsx'), 'utf8');
+
+  it('shows three large icon actions under the recipe instead of text buttons', () => {
+    expect(recipeDetails).not.toContain('<RecipeButton');
+    expect(recipeDetails.match(/<RecipeIconAction/g)).toHaveLength(3);
+    for (const id of [
+      'testID="recipe-add-to-shopping-list-button"',
+      'testID={`recipe-edit-button-${recipeId}`}',
+      'testID={`recipe-delete-button-${recipeId}`}',
+    ]) {
+      expect(recipeDetails).toContain(id);
+    }
+    expect(recipeDetails).toContain('width: 64');
+  });
+
+  it('shows the list creator instead of "Właściciel" and plain create / join actions', () => {
+    expect(overview).toContain("queryKey: ['todo-household-members', household.id] as const");
+    expect(overview).toContain('creatorName(index, household.owner_id)');
+    expect(overview).toContain('label={text.newHousehold}');
+    expect(overview).not.toContain('`+ ${text.newHousehold}`');
+    expect(overview).toContain('showChevron={false}');
+  });
+
+  it('keeps the header compact near the top edge', () => {
+    const container = shoppingHeader.slice(shoppingHeader.indexOf('  container: {'));
+    expect(container.slice(0, 160)).toContain('minHeight: 44');
+    expect(shopping).toContain('paddingTop: Spacing.one');
+  });
+});
+
 describe('tasks layout contract', () => {
   it('splits open tasks into today (overdue included) and later', () => {
     expect(todo).toContain("type DueGroup = 'today' | 'later';");

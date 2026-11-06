@@ -1,4 +1,6 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { useQueries } from '@tanstack/react-query';
 import { ActivityIndicator, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -10,6 +12,7 @@ import {
   HouseholdMessage,
   HouseholdNavigationRow,
 } from '@/features/households/HouseholdUI';
+import { fetchTodoMembers } from '@/features/todo/data';
 import { strings } from '@/localization';
 
 // "Listy" section: choose a list to manage (activate, share, leave/delete), create or join one.
@@ -18,6 +21,18 @@ export default function HouseholdsRoute() {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   const text = strings.pl.household;
+  // Member names come from the same RPC (and cache key) the task section uses; profiles
+  // of other users are not readable directly.
+  const memberQueries = useQueries({
+    queries: households.map((household) => ({
+      queryKey: ['todo-household-members', household.id] as const,
+      queryFn: () => fetchTodoMembers(household.id),
+    })),
+  });
+  const creatorName = (index: number, ownerId: string): string | null =>
+    memberQueries[index]?.data
+      ?.find((member) => member.user_id === ownerId)
+      ?.display_name?.trim() || null;
 
   return (
     <HouseholdFrame
@@ -40,7 +55,7 @@ export default function HouseholdsRoute() {
         </>
       ) : (
         <>
-          {households.map((household) => {
+          {households.map((household, index) => {
             const isActive = household.id === activeHouseholdId;
             return (
               <Pressable
@@ -69,9 +84,30 @@ export default function HouseholdsRoute() {
                     </Text>
                   ) : null}
                 </View>
-                <Text style={[styles.role, { color: colors.secondaryText }]}>
-                  {household.role === 'owner' ? text.ownerRole : text.memberRole}
-                </Text>
+                {/* Who created the list (falls back to the role while names load). */}
+                <View
+                  accessible
+                  accessibilityLabel={`${text.createdBy}: ${
+                    creatorName(index, household.owner_id) ??
+                    (household.role === 'owner' ? text.ownerRole : text.memberRole)
+                  }`}
+                  testID={`household-creator-${household.id}`}
+                  style={styles.creator}
+                >
+                  <SymbolView
+                    name={{
+                      ios: 'person.crop.circle',
+                      android: 'account_circle',
+                      web: 'account_circle',
+                    }}
+                    tintColor={colors.secondaryText}
+                    size={16}
+                  />
+                  <Text numberOfLines={1} style={[styles.role, { color: colors.secondaryText }]}>
+                    {creatorName(index, household.owner_id) ??
+                      (household.role === 'owner' ? text.ownerRole : text.memberRole)}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
@@ -82,13 +118,14 @@ export default function HouseholdsRoute() {
           {hasHouseholdCapacity(households.length) ? (
             <>
               <HouseholdButton
-                label={`+ ${text.newHousehold}`}
+                label={text.newHousehold}
                 testID="household-create-button"
                 onPress={() => router.push(householdRoutes.create())}
               />
               <HouseholdNavigationRow
                 title={text.joinWithCode}
                 testID="navigation-household-invitations"
+                showChevron={false}
                 onPress={() => router.push(householdRoutes.invitations())}
               />
             </>
@@ -117,6 +154,7 @@ const styles = StyleSheet.create({
   householdText: { gap: Spacing.half },
   name: { fontSize: 17, fontWeight: '600' },
   active: { fontSize: 13, fontWeight: '600' },
-  role: { fontSize: 13 },
+  creator: { flexShrink: 1, maxWidth: '45%', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  role: { flexShrink: 1, fontSize: 13 },
   count: { textAlign: 'center', marginVertical: Spacing.one },
 });

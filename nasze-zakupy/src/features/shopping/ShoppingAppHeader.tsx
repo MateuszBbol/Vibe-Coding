@@ -117,11 +117,11 @@ export function ShoppingAppHeader({
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 52,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
   },
   side: {
     flex: 1,

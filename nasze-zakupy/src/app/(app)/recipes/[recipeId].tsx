@@ -1,6 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import type { SymbolViewProps } from 'expo-symbols';
+import { ActivityIndicator, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -10,13 +12,7 @@ import { fetchActiveShoppingList } from '@/features/shopping/data';
 import { deleteRecipe, fetchRecipe, addRecipeToActiveList } from '@/features/recipes/data';
 import { isValidRecipeId, recipeQueryKeys, recipeRoutes } from '@/features/recipes/routes';
 import { useRecipeHousehold } from '@/features/recipes/household';
-import {
-  RecipeButton,
-  RecipeCard,
-  RecipeError,
-  RecipeFrame,
-  RecipeMessage,
-} from '@/features/recipes/RecipeUI';
+import { RecipeCard, RecipeError, RecipeFrame, RecipeMessage } from '@/features/recipes/RecipeUI';
 import { formatShoppingItemQuantity } from '@/features/shopping/format';
 import { getShoppingCategory } from '@/features/shopping/categories';
 import { strings } from '@/localization';
@@ -188,7 +184,6 @@ export default function RecipeDetailsRoute() {
     <RecipeFrame
       title={recipeQuery.data?.name ?? text.title}
       testID={`recipe-details-screen-${recipeId ?? 'unknown'}`}
-      onBack={returnToRecipes}
       section="recipes"
       nestedNav
     >
@@ -290,37 +285,129 @@ export default function RecipeDetailsRoute() {
               {successMessage}
             </Text>
           ) : null}
-          <RecipeButton
-            label={addMutation.isPending ? text.saving : text.addAll}
-            testID="recipe-add-to-shopping-list-button"
-            disabled={addMutation.isPending || recipeQuery.data.items.length === 0}
-            onPress={confirmAddAll}
-          />
-          <RecipeButton
-            label={text.edit}
-            testID={`recipe-edit-button-${recipeId}`}
-            secondary
-            onPress={() => {
-              const recipe = recipeQuery.data;
-              if (recipe) {
-                router.push(recipeRoutes.edit(household.id, recipe.id));
-              }
-            }}
-          />
-          <RecipeButton
-            label={deleteMutation.isPending ? text.saving : text.delete}
-            testID={`recipe-delete-button-${recipeId}`}
-            danger
-            disabled={deleteMutation.isPending}
-            onPress={confirmDelete}
-          />
+          <View style={styles.actionRow}>
+            <RecipeIconAction
+              label={text.addAllShort}
+              accessibilityLabel={addMutation.isPending ? text.saving : text.addAll}
+              icon={{
+                ios: 'cart.badge.plus',
+                android: 'add_shopping_cart',
+                web: 'add_shopping_cart',
+              }}
+              testID="recipe-add-to-shopping-list-button"
+              color={colors.background}
+              backgroundColor={colors.accent}
+              captionColor={colors.text}
+              busy={addMutation.isPending}
+              disabled={addMutation.isPending || recipeQuery.data.items.length === 0}
+              onPress={confirmAddAll}
+            />
+            <RecipeIconAction
+              label={text.editShort}
+              accessibilityLabel={text.edit}
+              icon={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+              testID={`recipe-edit-button-${recipeId}`}
+              color={colors.text}
+              backgroundColor={colors.card}
+              borderColor={colors.border}
+              captionColor={colors.text}
+              onPress={() => {
+                const recipe = recipeQuery.data;
+                if (recipe) {
+                  router.push(recipeRoutes.edit(household.id, recipe.id));
+                }
+              }}
+            />
+            <RecipeIconAction
+              label={text.deleteShort}
+              accessibilityLabel={deleteMutation.isPending ? text.saving : text.delete}
+              icon={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
+              testID={`recipe-delete-button-${recipeId}`}
+              color="#B42318"
+              backgroundColor={colors.card}
+              borderColor="#B42318"
+              captionColor="#B42318"
+              busy={deleteMutation.isPending}
+              disabled={deleteMutation.isPending}
+              onPress={confirmDelete}
+            />
+          </View>
         </>
       )}
     </RecipeFrame>
   );
 }
 
+// A large round icon with a short caption; used for the three recipe actions.
+function RecipeIconAction({
+  label,
+  accessibilityLabel,
+  icon,
+  testID,
+  color,
+  backgroundColor,
+  borderColor,
+  captionColor,
+  busy = false,
+  disabled = false,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel: string;
+  icon: SymbolViewProps['name'];
+  testID: string;
+  color: string;
+  backgroundColor: string;
+  borderColor?: string;
+  captionColor: string;
+  busy?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled, busy }}
+      aria-disabled={disabled}
+      testID={testID}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.action, { opacity: disabled ? 0.4 : pressed ? 0.7 : 1 }]}
+    >
+      <View
+        style={[
+          styles.actionCircle,
+          { backgroundColor, borderColor: borderColor ?? backgroundColor },
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator color={color} size="small" />
+        ) : (
+          <SymbolView name={icon} tintColor={color} size={28} />
+        )}
+      </View>
+      <Text style={[styles.actionLabel, { color: captionColor }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    marginTop: Spacing.two,
+  },
+  action: { alignItems: 'center', gap: Spacing.one, minWidth: 80 },
+  actionCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: { fontSize: 13, fontWeight: '600' },
   description: { fontSize: 15, lineHeight: 22 },
   sectionTitle: { fontSize: 17, fontWeight: '700' },
   preparationStep: { gap: Spacing.half },

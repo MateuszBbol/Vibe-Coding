@@ -822,12 +822,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   addButtonText: { fontSize: 15, fontWeight: '700' },
-  memberPicker: { width: '100%', alignItems: 'flex-end', gap: Spacing.one },
-  memberPickerLabel: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  // Caption centred over the assignee icons; the group itself sits on the right.
+  memberPicker: { maxWidth: '100%', alignItems: 'center', gap: Spacing.one },
+  memberPickerLabel: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
   memberChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     columnGap: Spacing.two,
     rowGap: Spacing.one,
   },

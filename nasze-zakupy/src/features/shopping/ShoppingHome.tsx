@@ -1477,6 +1477,8 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     alignSelf: 'center',
     padding: Spacing.three,
+    // The header sits closer to the top edge.
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.six,
   },
   primaryButton: {
