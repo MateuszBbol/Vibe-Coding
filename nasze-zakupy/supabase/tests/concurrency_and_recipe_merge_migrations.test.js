@@ -53,3 +53,23 @@ describe('recipe ingredients merge by name and unit', () => {
     expect(recipeMerge).toContain('items_merged integer');
   });
 });
+
+describe('merge only into unpurchased items and protect owner accounts', () => {
+  const ownerMigration = readFileSync(
+    resolve(
+      __dirname,
+      '../migrations/202611050008_merge_only_unpurchased_and_protect_owner_accounts.sql',
+    ),
+    'utf8',
+  ).toLowerCase();
+
+  test('edit merge target excludes purchased items', () => {
+    expect(ownerMigration).toContain('shopping_item.is_purchased = false');
+  });
+
+  test('deleting an owner account is blocked by a trigger on auth.users', () => {
+    expect(ownerMigration).toContain('create trigger prevent_household_owner_deletion');
+    expect(ownerMigration).toContain('before delete on auth.users');
+    expect(ownerMigration).toContain('raise exception');
+  });
+});
