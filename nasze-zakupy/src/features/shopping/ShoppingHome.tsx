@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,7 +45,6 @@ import {
 import { shoppingItemSchema, shoppingUnits } from '@/features/shopping/schemas';
 import type { ShoppingItemInput, ShoppingItemValues } from '@/features/shopping/schemas';
 import { Colors, Spacing } from '@/constants/theme';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { ShoppingAppHeader } from '@/features/shopping/ShoppingAppHeader';
 import { TodoSection } from '@/features/todo/TodoSection';
 import { fetchTodoItems } from '@/features/todo/data';
@@ -113,6 +113,8 @@ export function ShoppingHome({
   const [realtimeAttempt, setRealtimeAttempt] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'shopping' | 'todo'>('shopping');
+  const [listMenuOpen, setListMenuOpen] = useState(false);
+  const isOwner = household.role === 'owner' && household.owner_id === userId;
   const [showUnitOptions, setShowUnitOptions] = useState(false);
   const [showCategoryOptions, setShowCategoryOptions] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -526,7 +528,7 @@ export function ShoppingHome({
   const itemsToBuy = groupUnpurchasedItems(items);
   const purchasedItems = items.filter((item) => item.is_purchased);
 
-  const renderItem = (item: ShoppingItem) => {
+  const renderItem = (item: ShoppingItem, index: number, all: ShoppingItem[]) => {
     const isEditing = editingItemId === item.id;
     const isItemActionPending = updateMutation.isPending || toggleMutation.isPending;
 
@@ -534,7 +536,11 @@ export function ShoppingHome({
       <View
         key={item.id}
         testID={`shopping-item-${item.id}`}
-        style={[styles.item, { borderBottomColor: colors.border }]}
+        style={[
+          styles.item,
+          { borderBottomColor: colors.border },
+          index === all.length - 1 && styles.lastItem,
+        ]}
       >
         <Pressable
           accessibilityRole="checkbox"
@@ -772,103 +778,147 @@ export function ShoppingHome({
     );
   };
 
-  const navigation = (
-    <View style={styles.navigationButtons}>
+  const openFromListMenu = (href: Parameters<typeof router.push>[0]) => {
+    setListMenuOpen(false);
+    router.push(href);
+  };
+  const tabButtonStyle = (selected: boolean) => [
+    styles.tab,
+    selected ? { backgroundColor: colors.accent } : null,
+  ];
+  const tabTextStyle = (selected: boolean) => [
+    styles.tabText,
+    { color: selected ? colors.background : colors.text },
+  ];
+  // Primary navigation: the two in-place sections, recipes, and one menu for list actions.
+  const tabs = (
+    <View style={styles.tabsRow}>
+      <View
+        accessibilityRole="tablist"
+        testID="home-section-tabs"
+        style={[styles.tabs, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'shopping' }}
+          testID="home-tab-shopping"
+          onPress={() => setActiveTab('shopping')}
+          style={tabButtonStyle(activeTab === 'shopping')}
+        >
+          <Text numberOfLines={1} style={tabTextStyle(activeTab === 'shopping')}>
+            {strings.pl.shopping.shoppingTab} ({items.filter((item) => !item.is_purchased).length})
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'todo' }}
+          testID="home-tab-todo"
+          onPress={() => setActiveTab('todo')}
+          style={tabButtonStyle(activeTab === 'todo')}
+        >
+          <Text numberOfLines={1} style={tabTextStyle(activeTab === 'todo')}>
+            {strings.pl.shopping.todoTab} ({todoCount})
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          testID="navigation-recipes"
+          onPress={() => router.push(recipeRoutes.list(household.id))}
+          style={({ pressed }) => [...tabButtonStyle(false), { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Text numberOfLines={1} style={tabTextStyle(false)}>
+            {strings.pl.recipes.open}
+          </Text>
+        </Pressable>
+      </View>
       <Pressable
         accessibilityRole="button"
-        testID="navigation-recipes"
-        onPress={() => router.push(recipeRoutes.list(household.id))}
+        accessibilityLabel={text.listMenu}
+        accessibilityState={{ expanded: listMenuOpen }}
+        testID="shopping-list-menu-button"
+        onPress={() => setListMenuOpen(true)}
         style={({ pressed }) => [
-          styles.navigationButton,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            opacity: pressed ? 0.75 : 1,
-          },
+          styles.menuButton,
+          { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
         ]}
       >
         <SymbolView
-          name={{ ios: 'book.closed', android: 'menu_book', web: 'menu_book' }}
-          tintColor={colors.accent}
-          size={18}
+          name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
+          tintColor={colors.text}
+          size={22}
         />
-        <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
-          {strings.pl.recipes.open}
-        </Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        testID="navigation-households"
-        onPress={() => router.push(householdRoutes.root())}
-        style={({ pressed }) => [
-          styles.navigationButton,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            opacity: pressed ? 0.75 : 1,
-          },
-        ]}
-      >
-        <SymbolView
-          name={{ ios: 'house', android: 'home', web: 'home' }}
-          tintColor={colors.accent}
-          size={18}
-        />
-        <Text style={[styles.navigationButtonText, { color: colors.accent }]}>
-          {strings.pl.household.listTitle}
-        </Text>
       </Pressable>
     </View>
   );
-  const tabs = (
-    <View
-      accessibilityRole="tablist"
-      testID="home-section-tabs"
-      style={[styles.tabs, { backgroundColor: colors.card, borderColor: colors.border }]}
+  // Secondary list actions. Deleting the list lives in the list settings danger zone.
+  const listMenu = (
+    <Modal
+      visible={listMenuOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setListMenuOpen(false)}
     >
       <Pressable
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'shopping' }}
-        testID="home-tab-shopping"
-        onPress={() => setActiveTab('shopping')}
-        style={[
-          styles.tab,
-          activeTab === 'shopping'
-            ? { backgroundColor: colors.accent, borderColor: colors.accent }
-            : { borderColor: colors.border },
-        ]}
+        accessibilityLabel={text.closeMenu}
+        testID="shopping-list-menu-backdrop"
+        onPress={() => setListMenuOpen(false)}
+        style={styles.menuBackdrop}
       >
-        <Text
-          style={[
-            styles.tabText,
-            { color: activeTab === 'shopping' ? colors.background : colors.text },
-          ]}
+        <Pressable
+          testID="shopping-list-menu"
+          onPress={(event) => event.stopPropagation()}
+          style={[styles.menuSheet, { backgroundColor: colors.card }]}
         >
-          🛒 {strings.pl.shopping.shoppingTab} ({items.filter((item) => !item.is_purchased).length})
-        </Text>
+          <Text numberOfLines={1} style={[styles.menuTitle, { color: colors.secondaryText }]}>
+            {household.name}
+          </Text>
+          {isOwner ? (
+            <Pressable
+              accessibilityRole="button"
+              testID="shopping-menu-share"
+              onPress={() => openFromListMenu(householdRoutes.invitations(household.id))}
+              style={({ pressed }) => [
+                styles.menuItem,
+                { borderBottomColor: colors.border, opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <SymbolView
+                name={{ ios: 'person.badge.plus', android: 'person_add', web: 'person_add' }}
+                tintColor={colors.accent}
+                size={20}
+              />
+              <Text style={[styles.menuItemText, { color: colors.text }]}>{text.shareList}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            testID="shopping-menu-settings"
+            onPress={() => openFromListMenu(householdRoutes.details(household.id))}
+            style={({ pressed }) => [
+              styles.menuItem,
+              { borderBottomColor: colors.border, opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <SymbolView
+              name={{ ios: 'gearshape', android: 'settings', web: 'settings' }}
+              tintColor={colors.accent}
+              size={20}
+            />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>{text.listSettings}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            testID="shopping-list-menu-close"
+            onPress={() => setListMenuOpen(false)}
+            style={({ pressed }) => [styles.menuClose, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.menuCloseText, { color: colors.secondaryText }]}>
+              {text.closeMenu}
+            </Text>
+          </Pressable>
+        </Pressable>
       </Pressable>
-      <Pressable
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'todo' }}
-        testID="home-tab-todo"
-        onPress={() => setActiveTab('todo')}
-        style={[
-          styles.tab,
-          activeTab === 'todo'
-            ? { backgroundColor: colors.accent, borderColor: colors.accent }
-            : { borderColor: colors.border },
-        ]}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            { color: activeTab === 'todo' ? colors.background : colors.text },
-          ]}
-        >
-          ✓ {strings.pl.shopping.todoTab} ({todoCount})
-        </Text>
-      </Pressable>
-    </View>
+    </Modal>
   );
   if (!list) {
     return (
@@ -883,14 +933,15 @@ export function ShoppingHome({
         >
           <ShoppingAppHeader
             userName={displayName}
-            activeListName=""
+            activeListName={household.name}
             noActiveListLabel={text.noActiveList}
             title={text.title}
             signOutLabel={text.signOut}
+            switchListLabel={text.switchList}
             isSigningOut={isSigningOut}
             onSignOut={onSignOut}
+            onSwitchList={() => router.push(householdRoutes.root())}
           />
-          {navigation}
           {tabs}
           <View style={activeTab === 'shopping' ? undefined : styles.hiddenSection}>
             <View
@@ -920,11 +971,9 @@ export function ShoppingHome({
                   createListMutation.mutate();
                 }}
                 style={({ pressed }) => [
-                  styles.navigationButton,
-                  styles.fullWidthNavigationButton,
+                  styles.primaryButton,
                   {
                     backgroundColor: colors.accent,
-                    borderColor: colors.accent,
                     opacity: pressed || createListMutation.isPending ? 0.65 : 1,
                   },
                 ]}
@@ -951,6 +1000,7 @@ export function ShoppingHome({
             </Text>
           ) : null}
         </ScrollView>
+        {listMenu}
       </SafeAreaView>
     );
   }
@@ -967,17 +1017,17 @@ export function ShoppingHome({
       >
         <ShoppingAppHeader
           userName={displayName}
-          activeListName={list?.name ?? ''}
+          activeListName={household.name}
           noActiveListLabel={text.noActiveList}
           title={text.title}
           signOutLabel={text.signOut}
+          switchListLabel={text.switchList}
           isSigningOut={isSigningOut}
           onSignOut={onSignOut}
+          onSwitchList={() => router.push(householdRoutes.root())}
         />
-        {navigation}
         {tabs}
         <View style={activeTab === 'shopping' ? undefined : styles.hiddenSection}>
-          <ScreenHeader title={text.listName} />
           {realtimeStatus !== 'connected' ? (
             <View
               testID="shopping-realtime-status"
@@ -1376,30 +1426,32 @@ export function ShoppingHome({
 
               {purchasedItems.length > 0 ? (
                 <>
-                  <Text
-                    accessibilityRole="header"
-                    style={[styles.sectionTitle, { color: colors.text }]}
-                  >
-                    {text.purchased} ({purchasedItems.length})
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    testID="shopping-clear-completed-button"
-                    onPress={() =>
-                      scheduleDelete(
-                        purchasedItems.map((item) => item.id),
-                        text.undoDeletedPurchased(purchasedItems.length),
-                      )
-                    }
-                    style={({ pressed }) => [
-                      styles.deletePurchasedButton,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                  >
-                    <Text style={[styles.deletePurchasedText, { color: colors.accent }]}>
-                      {text.deletePurchased}
+                  <View style={styles.sectionHeaderRow}>
+                    <Text
+                      accessibilityRole="header"
+                      style={[styles.sectionTitle, { color: colors.text }]}
+                    >
+                      {text.purchased} ({purchasedItems.length})
                     </Text>
-                  </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      testID="shopping-clear-completed-button"
+                      onPress={() =>
+                        scheduleDelete(
+                          purchasedItems.map((item) => item.id),
+                          text.undoDeletedPurchased(purchasedItems.length),
+                        )
+                      }
+                      style={({ pressed }) => [
+                        styles.deletePurchasedButton,
+                        { opacity: pressed ? 0.6 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.deletePurchasedText, { color: colors.accent }]}>
+                        {text.deletePurchased}
+                      </Text>
+                    </Pressable>
+                  </View>
                   <View style={[styles.itemsCard, { backgroundColor: colors.card }]}>
                     {purchasedItems.map(renderItem)}
                   </View>
@@ -1444,6 +1496,7 @@ export function ShoppingHome({
           </Pressable>
         </View>
       ) : null}
+      {listMenu}
     </SafeAreaView>
   );
 }
@@ -1476,56 +1529,92 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: Spacing.four,
-    paddingBottom: Spacing.five,
-  },
-  navigationButtons: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginBottom: 13,
-  },
-  navigationButton: {
-    flex: 1,
-    minHeight: 40,
-    borderWidth: 1,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.two,
-  },
-  navigationButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  fullWidthNavigationButton: {
     width: '100%',
-    flex: undefined,
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: Spacing.three,
+    paddingBottom: Spacing.six,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
   },
   tabs: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     gap: Spacing.one,
     borderWidth: 1,
     borderRadius: 14,
     padding: Spacing.one,
-    marginBottom: Spacing.three,
   },
   tab: {
     flex: 1,
-    minHeight: 42,
+    minWidth: 0,
+    minHeight: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: Spacing.one,
   },
-  tabText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  tabText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  menuButton: {
+    width: 48,
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  menuSheet: {
+    width: '100%',
+    maxWidth: 560,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.four,
+  },
+  menuTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: Spacing.one,
+  },
+  menuItem: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  menuItemText: { fontSize: 16, fontWeight: '500' },
+  menuClose: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.two,
+  },
+  menuCloseText: { fontSize: 15, fontWeight: '600' },
+  primaryButton: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.three,
+  },
   hiddenSection: { display: 'none' },
   noListCard: {
     gap: Spacing.two,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: Spacing.three,
   },
   createListButtonText: {
@@ -1558,8 +1647,8 @@ const styles = StyleSheet.create({
   addCard: {
     borderWidth: 1,
     borderRadius: 16,
-    padding: Spacing.two,
-    marginBottom: 13,
+    padding: Spacing.three,
+    marginBottom: Spacing.four,
   },
   addRow: {
     flexDirection: 'row',
@@ -1673,37 +1762,44 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   categoryTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    fontStyle: 'italic',
-    marginBottom: Spacing.two,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: Spacing.one,
+    marginLeft: Spacing.one,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: Spacing.two,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   deletePurchasedButton: {
-    alignSelf: 'flex-start',
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: 'center',
-    marginTop: -Spacing.two,
-    marginBottom: Spacing.one,
+    marginBottom: Spacing.two,
   },
   deletePurchasedText: {
     fontSize: 14,
     fontWeight: '600',
   },
   itemsCard: {
-    borderRadius: 18,
-    paddingHorizontal: Spacing.three,
-    marginBottom: Spacing.four,
+    borderRadius: 16,
+    paddingHorizontal: Spacing.two,
+    marginBottom: Spacing.three,
   },
   item: {
     minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  lastItem: {
+    borderBottomWidth: 0,
   },
   itemToggle: {
     width: 34,

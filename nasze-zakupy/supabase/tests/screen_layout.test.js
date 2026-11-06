@@ -25,24 +25,31 @@ describe('screen layout contract', () => {
     expect(localization).toContain("create: 'New recipe'");
   });
 
-  it('places compact horizontal navigation and section tabs before the shopping title', () => {
-    expect(shopping.indexOf('styles.navigationButtons')).toBeLessThan(
-      shopping.indexOf('<ScreenHeader'),
+  it('uses one compact navigation row with section tabs, recipes and a list menu', () => {
+    expect(shopping).not.toContain('styles.navigationButtons');
+    expect(shopping).not.toContain('<ScreenHeader');
+    expect(shopping.indexOf('testID="home-tab-shopping"')).toBeLessThan(
+      shopping.indexOf('testID="navigation-recipes"'),
     );
-    expect(shopping.indexOf('styles.navigationButtons')).toBeLessThan(
-      shopping.indexOf('styles.tabs'),
+    expect(shopping.indexOf('testID="navigation-recipes"')).toBeLessThan(
+      shopping.indexOf('testID="shopping-list-menu-button"'),
     );
     expect(shopping).toContain('router.push(recipeRoutes.list(household.id))');
-    expect(shopping).toContain('router.push(householdRoutes.root())');
-    expect(shopping).toContain("flexDirection: 'row'");
-    expect(shopping).toContain('flex: 1');
+    expect(shopping).toContain('onSwitchList={() => router.push(householdRoutes.root())}');
+    expect(shopping).toContain('style={styles.tabsRow}');
     expect(shopping).toContain('minHeight: 40');
-    expect(shopping).toContain('borderRadius: 12');
-    expect(shopping).toContain('paddingHorizontal: Spacing.two');
-    expect(shopping).toContain('fontSize: 13');
-    expect(shopping).toContain("fontWeight: '700'");
     expect(shopping).toContain('testID="home-tab-shopping"');
     expect(shopping).toContain('testID="home-tab-todo"');
+  });
+
+  it('keeps secondary list actions in the menu and destructive actions out of it', () => {
+    expect(shopping).toContain('testID="shopping-menu-share"');
+    expect(shopping).toContain('{isOwner ? (');
+    expect(shopping).toContain('householdRoutes.invitations(household.id)');
+    expect(shopping).toContain('testID="shopping-menu-settings"');
+    expect(shopping).toContain('householdRoutes.details(household.id)');
+    expect(shopping).not.toContain('deleteHousehold');
+    expect(shopping).not.toContain('deleteShoppingList');
   });
 
   it('shares a centered header between recipe and household screens', () => {
@@ -65,20 +72,22 @@ describe('screen layout contract', () => {
   it('renders the app header from the active user and shopping list data', () => {
     expect(shopping).toContain('<ShoppingAppHeader');
     expect(shopping).toContain('userName={displayName}');
-    expect(shopping).toContain('activeListName={list?.name ??');
+    expect(shopping).toContain('activeListName={household.name}');
     expect(shopping).toContain('title={text.title}');
     expect(shoppingHeader).toContain('{userName}');
-    expect(shoppingHeader).toContain('{activeListName || noActiveListLabel}');
+    expect(shoppingHeader).toContain('const listLabel = activeListName || noActiveListLabel;');
+    expect(shoppingHeader).toContain('{listLabel}');
     expect(shoppingHeader).toContain("ios: 'person.crop.circle'");
+    expect(shoppingHeader).toContain('testID="navigation-households"');
     expect(home).toContain('household={activeHousehold}');
-    expect(shopping).toContain('<ScreenHeader title={text.listName} />');
   });
 
-  it('centers branding independently and truncates the user and active-list labels', () => {
-    expect(shoppingHeader).toContain("position: 'absolute'");
-    expect(shoppingHeader).toContain('left: 0');
-    expect(shoppingHeader).toContain('right: 0');
-    expect(shoppingHeader).toContain("textAlign: 'center'");
+  it('keeps branding left and the compact, truncated user and active-list block on the right', () => {
+    expect(shoppingHeader).toContain("justifyContent: 'space-between'");
+    expect(shoppingHeader).toContain("justifyContent: 'flex-end'");
+    expect(shoppingHeader.indexOf('testID="navigation-households"')).toBeLessThan(
+      shoppingHeader.indexOf('testID="profile-logout-button"'),
+    );
     expect(shoppingHeader.match(/numberOfLines={1}/g)).toHaveLength(3);
     expect(shoppingHeader.match(/ellipsizeMode="tail"/g)).toHaveLength(2);
     expect(shoppingHeader).toContain('fontSize: 25');

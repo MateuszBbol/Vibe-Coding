@@ -19,7 +19,7 @@ export default function HouseholdsRoute() {
         onPress={() => router.push(householdRoutes.list())}
       />
       <HouseholdNavigationRow
-        title={`✉️ ${text.openInvitations}`}
+        title={`✉️ ${text.joinWithCode}`}
         testID="navigation-household-invitations"
         onPress={() => router.push(householdRoutes.invitations())}
       />

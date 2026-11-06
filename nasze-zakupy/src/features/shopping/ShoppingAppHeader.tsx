@@ -16,8 +16,10 @@ type ShoppingAppHeaderProps = {
   noActiveListLabel: string;
   title: string;
   signOutLabel: string;
+  switchListLabel: string;
   isSigningOut: boolean;
   onSignOut: () => void;
+  onSwitchList: () => void;
 };
 
 export function ShoppingAppHeader({
@@ -26,50 +28,79 @@ export function ShoppingAppHeader({
   noActiveListLabel,
   title,
   signOutLabel,
+  switchListLabel,
   isSigningOut,
   onSignOut,
+  onSwitchList,
 }: ShoppingAppHeaderProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
-  const isCompact = useWindowDimensions().width < 960;
+  const isCompact = useWindowDimensions().width < 520;
+  const listLabel = activeListName || noActiveListLabel;
 
   return (
-    <View style={[styles.container, isCompact && styles.compactContainer]}>
-      <View pointerEvents="none" style={isCompact ? styles.compactCenter : styles.center}>
-        <Text
-          accessibilityRole="header"
-          numberOfLines={1}
-          style={[styles.title, isCompact && styles.compactTitle, { color: colors.text }]}
+    <View style={styles.container}>
+      <Text
+        accessibilityRole="header"
+        numberOfLines={1}
+        style={[styles.title, isCompact && styles.compactTitle, { color: colors.text }]}
+      >
+        {title}
+      </Text>
+      <View style={styles.right}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${userName}, ${listLabel}. ${switchListLabel}`}
+          testID="navigation-households"
+          onPress={onSwitchList}
+          style={({ pressed }) => [
+            styles.identity,
+            { backgroundColor: colors.card, borderColor: colors.border },
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
         >
-          {title}
-        </Text>
-      </View>
-      <View style={[styles.right, isCompact && styles.compactRight]}>
-        <View style={styles.identity}>
-          <View style={styles.userNameRow}>
-            <SymbolView
-              name={{ ios: 'person.crop.circle', android: 'account_circle', web: 'account_circle' }}
-              tintColor={colors.accent}
-              size={18}
-            />
-            <Text
-              testID="profile-user-name"
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              style={[styles.userName, { color: colors.text }]}
-            >
-              {userName}
-            </Text>
+          <View style={styles.identityText}>
+            <View style={styles.identityRow}>
+              <SymbolView
+                name={{
+                  ios: 'person.crop.circle',
+                  android: 'account_circle',
+                  web: 'account_circle',
+                }}
+                tintColor={colors.accent}
+                size={16}
+              />
+              <Text
+                testID="profile-user-name"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[styles.userName, { color: colors.text }]}
+              >
+                {userName}
+              </Text>
+            </View>
+            <View style={styles.identityRow}>
+              <SymbolView
+                name={{ ios: 'cart', android: 'shopping_cart', web: 'shopping_cart' }}
+                tintColor={colors.secondaryText}
+                size={14}
+              />
+              <Text
+                testID="active-shopping-list-name"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[styles.activeListName, { color: colors.secondaryText }]}
+              >
+                {listLabel}
+              </Text>
+            </View>
           </View>
-          <Text
-            testID="active-shopping-list-name"
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={[styles.activeListName, { color: colors.secondaryText }]}
-          >
-            {activeListName || noActiveListLabel}
-          </Text>
-        </View>
+          <SymbolView
+            name={{ ios: 'chevron.down', android: 'expand_more', web: 'expand_more' }}
+            tintColor={colors.secondaryText}
+            size={16}
+          />
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={signOutLabel}
@@ -80,7 +111,6 @@ export function ShoppingAppHeader({
           hitSlop={8}
           style={({ pressed }) => [
             styles.logout,
-            isCompact && styles.compactLogout,
             { opacity: isSigningOut ? 0.5 : pressed ? 0.65 : 1 },
           ]}
         >
@@ -97,88 +127,71 @@ export function ShoppingAppHeader({
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 48,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: Spacing.two,
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
   },
-  compactContainer: {
-    minHeight: 72,
-    flexDirection: 'column',
-    justifyContent: 'center',
+  title: {
+    flexShrink: 0,
+    fontSize: 25,
+    lineHeight: 32,
+    fontWeight: '700',
+  },
+  compactTitle: {
+    fontSize: 18,
+    lineHeight: 24,
   },
   right: {
-    width: '48%',
+    flex: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: Spacing.one,
   },
-  compactRight: {
-    width: '100%',
-    minHeight: 32,
-  },
   identity: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
-    alignItems: 'flex-end',
-    gap: 1,
-  },
-  userNameRow: {
-    maxWidth: '100%',
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    gap: Spacing.one,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: Spacing.one,
+    paddingLeft: Spacing.two,
+    paddingRight: Spacing.one,
+  },
+  identityText: {
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 1,
+  },
+  identityRow: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
   userName: {
     flexShrink: 1,
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   activeListName: {
-    maxWidth: '100%',
+    flexShrink: 1,
     fontSize: 12,
     lineHeight: 15,
     fontWeight: '500',
-    textAlign: 'right',
-  },
-  center: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  compactCenter: {
-    width: '100%',
-    minHeight: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    maxWidth: '48%',
-    fontSize: 25,
-    lineHeight: 32,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  compactTitle: {
-    maxWidth: '90%',
   },
   logout: {
     width: 40,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  compactLogout: {
-    minHeight: 32,
   },
 });

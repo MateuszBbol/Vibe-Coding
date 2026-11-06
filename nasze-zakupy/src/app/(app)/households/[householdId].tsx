@@ -1,14 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -29,12 +21,7 @@ import {
   HouseholdFrame,
   HouseholdMessage,
 } from '@/features/households/HouseholdUI';
-import {
-  createShoppingList,
-  deleteShoppingList,
-  fetchActiveShoppingList,
-} from '@/features/shopping/data';
-import type { ShoppingList } from '@/features/shopping/data';
+import { createShoppingList, fetchActiveShoppingList } from '@/features/shopping/data';
 import { useHouseholds } from '@/features/households/useHouseholds';
 import { strings } from '@/localization';
 
@@ -95,33 +82,6 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
       setActionError(getFeatureErrorMessage(error));
     },
   });
-  const deleteShoppingListMutation = useMutation({
-    mutationFn: (shoppingListId: string) => deleteShoppingList(shoppingListId),
-    onSuccess: async (_result, deletedListId) => {
-      if (userId) {
-        await queryClient.cancelQueries({
-          queryKey: ['shopping-items', deletedListId],
-          exact: true,
-        });
-        queryClient.removeQueries({
-          queryKey: ['shopping-items', deletedListId],
-          exact: true,
-        });
-      }
-      queryClient.setQueryData<ShoppingList | null>(activeListQueryKey, null);
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: activeListQueryKey });
-      router.replace(householdRoutes.list());
-    },
-    onError: (error: unknown, deletedListId) => {
-      logFeatureError('[shopping list] delete from details failed', error, {
-        userId,
-        householdId,
-        listId: deletedListId,
-      });
-      setActionError(getFeatureErrorMessage(error));
-    },
-  });
   useEffect(() => {
     if (shoppingListQuery.isError) {
       logFeatureError('[shopping list] load from details failed', shoppingListQuery.error, {
@@ -160,7 +120,13 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
           householdId,
         });
       });
-    router.back();
+    // The removed list must not stay on screen: return to the previous screen,
+    // or to the shopping screen when this page was opened directly.
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/home');
+    }
   };
 
   const leave = async () => {
@@ -201,41 +167,20 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
   };
 
   const confirmLeave = () => {
-    Alert.alert(text.leaveConfirmTitle, text.leaveConfirmDescription, [
-      { text: strings.pl.auth.cancel, style: 'cancel' },
-      { text: text.leaveButton, style: 'destructive', onPress: () => void leave() },
-    ]);
-  };
-  const confirmDelete = () => {
-    if (!household) {
-      return;
-    }
-    Alert.alert(text.deleteConfirmTitle(household.name), text.deleteConfirmDescription, [
-      { text: strings.pl.auth.cancel, style: 'cancel' },
-      {
-        text: text.continueDelete,
-        style: 'destructive',
-        onPress: () => {
-          setActionError(null);
-          setConfirmationName('');
-          setConfirmationStep(true);
-        },
-      },
-    ]);
-  };
-  const confirmDeleteShoppingList = () => {
-    const shoppingList = shoppingListQuery.data;
-    if (!shoppingList) {
-      return;
-    }
-    setActionError(null);
+    // Alert.alert is a no-op on web, so use the shared cross-platform confirmation.
     confirmRecipeAction({
-      title: text.deleteShoppingListConfirmTitle,
-      message: text.deleteShoppingListConfirmMessage(shoppingList.name),
+      title: text.leaveConfirmTitle,
+      message: text.leaveConfirmDescription,
       cancelLabel: strings.pl.auth.cancel,
-      confirmLabel: text.deleteShoppingListButton,
-      onConfirm: () => deleteShoppingListMutation.mutate(shoppingList.id),
+      confirmLabel: text.leaveButton,
+      onConfirm: () => void leave(),
     });
+  };
+  // Typing the exact list name is the confirmation for this destructive action.
+  const beginDelete = () => {
+    setActionError(null);
+    setConfirmationName('');
+    setConfirmationStep(true);
   };
 
   return (
@@ -295,19 +240,7 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
             <HouseholdMessage testID="shopping-list-details-error-message">
               {text.shoppingListLoadFailed}
             </HouseholdMessage>
-          ) : shoppingListQuery.data ? (
-            <HouseholdButton
-              label={
-                deleteShoppingListMutation.isPending
-                  ? text.deletingShoppingList
-                  : text.deleteShoppingListButton
-              }
-              testID="shopping-delete-list-button"
-              destructive
-              disabled={deleteShoppingListMutation.isPending}
-              onPress={confirmDeleteShoppingList}
-            />
-          ) : (
+          ) : shoppingListQuery.data ? null : (
             <>
               <HouseholdMessage testID="shopping-list-empty-state">
                 {text.noShoppingList}
@@ -333,75 +266,83 @@ function ValidHouseholdDetails({ householdId }: { householdId: string }) {
               {actionError}
             </Text>
           ) : null}
-          {action === 'leave' ? (
-            <HouseholdButton
-              label={text.leaveButton}
-              testID="household-leave-button"
-              destructive
-              disabled={isWorking}
-              onPress={confirmLeave}
-            />
-          ) : confirmationStep ? (
-            <View style={[styles.deleteCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {text.deleteSectionTitle}
-              </Text>
-              <Text style={[styles.description, { color: colors.secondaryText }]}>
-                {text.deleteWarning}
-              </Text>
-              <Text style={[styles.description, { color: colors.text }]}>
-                {text.confirmHouseholdName(household.name)}
-              </Text>
-              <TextInput
-                accessibilityLabel={text.confirmationInputLabel}
-                testID="household-delete-confirmation-input"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isWorking}
-                onChangeText={(value) => {
-                  setActionError(null);
-                  setConfirmationName(value);
-                }}
-                placeholder={household.name}
-                placeholderTextColor={colors.secondaryText}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    color: colors.text,
-                  },
-                ]}
-                value={confirmationName}
-              />
+          <View
+            testID="household-danger-zone"
+            style={[styles.dangerZone, { borderTopColor: colors.border }]}
+          >
+            <Text style={[styles.dangerTitle, { color: colors.secondaryText }]}>
+              {text.dangerZoneTitle}
+            </Text>
+            {action === 'leave' ? (
               <HouseholdButton
-                label={isWorking ? text.deletingHousehold : text.deletePermanently}
-                testID="household-delete-confirm-button"
+                label={text.leaveButton}
+                testID="household-leave-button"
                 destructive
-                disabled={
-                  isWorking || !isHouseholdNameConfirmationValid(confirmationName, household.name)
-                }
-                onPress={() => void remove()}
-              />
-              <HouseholdButton
-                label={strings.pl.auth.cancel}
-                testID="household-delete-cancel-button"
                 disabled={isWorking}
-                onPress={() => {
-                  setConfirmationStep(false);
-                  setConfirmationName('');
-                }}
+                onPress={confirmLeave}
               />
-            </View>
-          ) : (
-            <HouseholdButton
-              label={text.deleteHouseholdButton}
-              testID="household-delete-button"
-              destructive
-              disabled={isWorking}
-              onPress={confirmDelete}
-            />
-          )}
+            ) : confirmationStep ? (
+              <View style={[styles.deleteCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  {text.deleteConfirmTitle(household.name)}
+                </Text>
+                <Text style={[styles.description, { color: colors.secondaryText }]}>
+                  {text.deleteWarning}
+                </Text>
+                <Text style={[styles.description, { color: colors.text }]}>
+                  {text.confirmHouseholdName(household.name)}
+                </Text>
+                <TextInput
+                  accessibilityLabel={text.confirmationInputLabel}
+                  testID="household-delete-confirmation-input"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isWorking}
+                  onChangeText={(value) => {
+                    setActionError(null);
+                    setConfirmationName(value);
+                  }}
+                  placeholder={household.name}
+                  placeholderTextColor={colors.secondaryText}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
+                  value={confirmationName}
+                />
+                <HouseholdButton
+                  label={isWorking ? text.deletingHousehold : text.deletePermanently}
+                  testID="household-delete-confirm-button"
+                  destructive
+                  disabled={
+                    isWorking || !isHouseholdNameConfirmationValid(confirmationName, household.name)
+                  }
+                  onPress={() => void remove()}
+                />
+                <HouseholdButton
+                  label={strings.pl.auth.cancel}
+                  testID="household-delete-cancel-button"
+                  disabled={isWorking}
+                  onPress={() => {
+                    setConfirmationStep(false);
+                    setConfirmationName('');
+                  }}
+                />
+              </View>
+            ) : (
+              <HouseholdButton
+                label={text.deleteHouseholdButton}
+                testID="household-delete-button"
+                destructive
+                disabled={isWorking}
+                onPress={beginDelete}
+              />
+            )}
+          </View>
         </>
       )}
     </HouseholdFrame>
@@ -412,6 +353,18 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 16, padding: Spacing.three, gap: Spacing.one },
   meta: { fontSize: 15, lineHeight: 21 },
   deleteCard: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
+  dangerZone: {
+    marginTop: Spacing.four,
+    paddingTop: Spacing.three,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
+  },
+  dangerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
   sectionTitle: { fontSize: 17, fontWeight: '700' },
   description: { fontSize: 14, lineHeight: 21 },
   input: {
