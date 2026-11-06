@@ -545,30 +545,34 @@ export function ShoppingHome({
           index === all.length - 1 && styles.lastItem,
         ]}
       >
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{
-            checked: item.is_purchased,
-            disabled: isItemActionPending || isEditing,
-          }}
-          aria-checked={item.is_purchased}
-          accessibilityLabel={[item.name, formatShoppingItemQuantity(item.quantity, item.unit)]
-            .filter(Boolean)
-            .join(', ')}
-          testID={`shopping-item-checkbox-${item.id}`}
-          disabled={isItemActionPending || isEditing}
-          onPress={() => toggleMutation.mutate({ itemId: item.id, purchased: !item.is_purchased })}
-          style={styles.itemToggle}
-        >
-          <Text
-            style={[
-              styles.checkmark,
-              { color: item.is_purchased ? colors.accent : colors.secondaryText },
-            ]}
+        {isEditing ? null : (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{
+              checked: item.is_purchased,
+              disabled: isItemActionPending || isEditing,
+            }}
+            aria-checked={item.is_purchased}
+            accessibilityLabel={[item.name, formatShoppingItemQuantity(item.quantity, item.unit)]
+              .filter(Boolean)
+              .join(', ')}
+            testID={`shopping-item-checkbox-${item.id}`}
+            disabled={isItemActionPending || isEditing}
+            onPress={() =>
+              toggleMutation.mutate({ itemId: item.id, purchased: !item.is_purchased })
+            }
+            style={styles.itemToggle}
           >
-            {item.is_purchased ? '✓' : '○'}
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.checkmark,
+                { color: item.is_purchased ? colors.accent : colors.secondaryText },
+              ]}
+            >
+              {item.is_purchased ? '✓' : '○'}
+            </Text>
+          </Pressable>
+        )}
         {isEditing ? (
           <View style={[styles.itemTextContainer, styles.editItemForm]}>
             <TextInput
@@ -627,6 +631,7 @@ export function ShoppingHome({
                 onPress={() => setEditCategoryOptionsOpen((open) => !open)}
                 style={[
                   styles.editSelector,
+                  styles.editCategorySelector,
                   { backgroundColor: colors.background, borderColor: colors.border },
                 ]}
               >
@@ -698,11 +703,14 @@ export function ShoppingHome({
                 testID={`shopping-edit-save-${item.id}`}
                 disabled={updateMutation.isPending}
                 onPress={() => saveItemEdit(item)}
-                style={styles.itemActionButton}
+                hitSlop={6}
+                style={[styles.editIconButton, { backgroundColor: colors.accent }]}
               >
-                <Text style={[styles.editActionText, { color: colors.accent }]}>
-                  {text.saveItem}
-                </Text>
+                <SymbolView
+                  name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                  tintColor={colors.background}
+                  size={20}
+                />
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -710,11 +718,18 @@ export function ShoppingHome({
                 testID={`shopping-edit-cancel-${item.id}`}
                 disabled={updateMutation.isPending}
                 onPress={cancelItemEdit}
-                style={styles.itemActionButton}
+                hitSlop={6}
+                style={[
+                  styles.editIconButton,
+                  { backgroundColor: colors.background, borderColor: colors.border },
+                  styles.editIconButtonSecondary,
+                ]}
               >
-                <Text style={[styles.editActionText, { color: colors.secondaryText }]}>
-                  {text.cancelItemEdit}
-                </Text>
+                <SymbolView
+                  name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                  tintColor={colors.secondaryText}
+                  size={20}
+                />
               </Pressable>
             </View>
           </View>
@@ -748,47 +763,50 @@ export function ShoppingHome({
             ) : null}
           </View>
         )}
-        <View style={styles.itemActions}>
-          {/* Only items still to buy can be edited; the spacer keeps the delete icons aligned. */}
-          {item.is_purchased && !isEditing ? (
-            <View style={styles.itemActionButton} />
-          ) : (
+        {/* While editing, the check and X icons in the form are the only actions. */}
+        {isEditing ? null : (
+          <View style={styles.itemActions}>
+            {/* Only items still to buy can be edited; the spacer keeps the delete icons aligned. */}
+            {item.is_purchased && !isEditing ? (
+              <View style={styles.itemActionButton} />
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text.editItem}
+                accessibilityHint={text.editItem}
+                accessibilityState={{ disabled: isItemActionPending }}
+                testID={`shopping-item-edit-${item.id}`}
+                disabled={isItemActionPending}
+                onPress={() => (isEditing ? cancelItemEdit() : beginItemEdit(item))}
+                hitSlop={6}
+                style={styles.itemActionButton}
+              >
+                <SymbolView
+                  name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                  tintColor={colors.secondaryText}
+                  size={18}
+                />
+              </Pressable>
+            )}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={text.editItem}
-              accessibilityHint={text.editItem}
+              accessibilityLabel={text.deleteItem}
+              accessibilityHint={text.deleteItem}
               accessibilityState={{ disabled: isItemActionPending }}
-              testID={`shopping-item-edit-${item.id}`}
+              testID={`shopping-item-delete-${item.id}`}
               disabled={isItemActionPending}
-              onPress={() => (isEditing ? cancelItemEdit() : beginItemEdit(item))}
+              onPress={() => scheduleDelete([item.id], text.undoDeleted(item.name))}
               hitSlop={6}
               style={styles.itemActionButton}
             >
               <SymbolView
-                name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                name={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
                 tintColor={colors.secondaryText}
                 size={18}
               />
             </Pressable>
-          )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={text.deleteItem}
-            accessibilityHint={text.deleteItem}
-            accessibilityState={{ disabled: isItemActionPending }}
-            testID={`shopping-item-delete-${item.id}`}
-            disabled={isItemActionPending}
-            onPress={() => scheduleDelete([item.id], text.undoDeleted(item.name))}
-            hitSlop={6}
-            style={styles.itemActionButton}
-          >
-            <SymbolView
-              name={{ ios: 'trash', android: 'delete_outline', web: 'delete_outline' }}
-              tintColor={colors.secondaryText}
-              size={18}
-            />
-          </Pressable>
-        </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -830,7 +848,7 @@ export function ShoppingHome({
               testID="shopping-no-list-state"
               style={[styles.noListCard, { backgroundColor: colors.card }]}
             >
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{text.noListsTitle}</Text>
+              <Text style={[styles.noListTitle, { color: colors.text }]}>{text.noListsTitle}</Text>
               <Text style={[styles.message, { color: colors.secondaryText }]}>
                 {text.noListsDescription}
               </Text>
@@ -1286,13 +1304,15 @@ export function ShoppingHome({
               </View>
             ) : (
               <>
-                <Text
-                  accessibilityRole="header"
-                  testID="shopping-to-buy-title"
-                  style={[styles.sectionTitle, { color: colors.text }]}
-                >
-                  {text.toBuy}
-                </Text>
+                <View style={styles.sectionHeader}>
+                  <Text
+                    accessibilityRole="header"
+                    testID="shopping-to-buy-title"
+                    style={[styles.sectionTitle, { color: colors.text }]}
+                  >
+                    {text.toBuy}
+                  </Text>
+                </View>
                 {itemsToBuy.length > 0 ? (
                   itemsToBuy.map(({ category, items: categoryItems }) => (
                     <View key={category.id} testID={`shopping-category-${category.id}`}>
@@ -1320,9 +1340,10 @@ export function ShoppingHome({
 
                 {purchasedItems.length > 0 ? (
                   <>
-                    <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
                       <Text
                         accessibilityRole="header"
+                        testID="shopping-purchased-title"
                         style={[styles.sectionTitle, { color: colors.text }]}
                       >
                         {text.purchased}
@@ -1481,7 +1502,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 16,
     padding: Spacing.three,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   addRow: {
     flexDirection: 'row',
@@ -1597,24 +1618,29 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 14,
     fontWeight: '700',
-    marginBottom: Spacing.one,
+    marginBottom: 6,
     marginLeft: Spacing.one,
   },
+  // "Lista zakupów" and "Kupione" share this style so both headings look the same.
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: '700',
-    marginBottom: Spacing.two,
   },
-  sectionHeaderRow: {
+  sectionHeader: {
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  sectionHeaderSpaced: {
+    marginTop: Spacing.two,
   },
   deletePurchasedButton: {
     minHeight: 44,
     justifyContent: 'center',
-    marginBottom: Spacing.two,
   },
   deletePurchasedText: {
     fontSize: 14,
@@ -1624,6 +1650,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: Spacing.two,
     marginBottom: Spacing.three,
+  },
+  noListTitle: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
   },
   item: {
     minHeight: 50,
@@ -1657,25 +1688,31 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'stretch',
     justifyContent: 'flex-start',
-    paddingVertical: Spacing.two,
+    gap: Spacing.two,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.one,
   },
+  // flex: 0 collapsed the height on web; keep the natural 44 px input height.
   editNameInput: {
     width: '100%',
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
   editQuantityInput: {
-    width: 88,
-    flex: 0,
+    width: undefined,
+    flex: 1,
+    minWidth: 72,
   },
   editItemSelectors: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.one,
+    gap: Spacing.two,
   },
   editSelector: {
     flex: 1,
     minWidth: 72,
-    minHeight: 40,
+    minHeight: 44,
     borderWidth: 1,
     borderRadius: 10,
     alignItems: 'center',
@@ -1687,12 +1724,25 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.one,
   },
+  editCategorySelector: {
+    flex: 1.6,
+    minWidth: 120,
+  },
   editItemActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.two,
   },
-  editActionText: { fontSize: 13, fontWeight: '600' },
+  editIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editIconButtonSecondary: {
+    borderWidth: 1,
+  },
   itemName: {
     flex: 1,
     fontSize: 16,

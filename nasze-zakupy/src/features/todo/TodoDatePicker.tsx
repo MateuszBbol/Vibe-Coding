@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -49,7 +50,7 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
         month: 'long',
         year: 'numeric',
       }).format(parseTodoDate(value))
-    : text.todoDueDatePlaceholder;
+    : `+ ${text.todoDueDatePlaceholder}`;
 
   return (
     <View style={styles.container}>
@@ -61,19 +62,27 @@ export function TodoDatePicker({ value, onChange, disabled = false, testID }: To
           testID={testID}
           disabled={disabled}
           onPress={() => setIsOpen((open) => !open)}
+          // The deadline is optional: a compact chip, the calendar opens only on demand.
           style={({ pressed }) => [
             styles.field,
             {
-              backgroundColor: colors.background,
-              borderColor: isOpen ? colors.accent : colors.border,
+              backgroundColor: value ? colors.accentSoft : colors.background,
+              borderColor: isOpen || value ? colors.accent : colors.border,
               opacity: disabled || pressed ? 0.65 : 1,
             },
           ]}
         >
-          <Text style={[styles.fieldText, { color: value ? colors.text : colors.secondaryText }]}>
+          <SymbolView
+            name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
+            tintColor={colors.accent}
+            size={16}
+          />
+          <Text
+            numberOfLines={1}
+            style={[styles.fieldText, { color: value ? colors.text : colors.accent }]}
+          >
             {selectedLabel}
           </Text>
-          <Text style={[styles.calendarIcon, { color: colors.accent }]}>▦</Text>
         </Pressable>
         {value ? (
           <Pressable
@@ -182,18 +191,16 @@ const styles = StyleSheet.create({
   container: { width: '100%' },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   field: {
-    flex: 1,
-    minHeight: 44,
+    flexShrink: 1,
+    minHeight: 40,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.two,
+    borderRadius: 20,
+    paddingHorizontal: Spacing.three,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: Spacing.two,
   },
-  fieldText: { flex: 1, fontSize: 14 },
-  calendarIcon: { fontSize: 18 },
+  fieldText: { flexShrink: 1, fontSize: 14, fontWeight: '600' },
   clearButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
   clearText: { fontSize: 23, lineHeight: 27 },
   calendar: { borderWidth: 1, borderRadius: 12, padding: Spacing.two, marginTop: Spacing.one },

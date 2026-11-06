@@ -202,6 +202,33 @@ describe('screen layout contract', () => {
   });
 });
 
+describe('shopping item edit form contract', () => {
+  it('hides the checkbox and row actions while editing and uses check / X icons', () => {
+    const guard = shopping.indexOf('{isEditing ? null : (');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(shopping.indexOf('testID={`shopping-item-checkbox-${item.id}`}'));
+    expect(shopping).toMatch(/\{isEditing \? null : \(\s*<View style=\{styles\.itemActions\}>/);
+    expect(shopping).toContain("name={{ ios: 'checkmark', android: 'check', web: 'check' }}");
+    expect(shopping).toContain("name={{ ios: 'xmark', android: 'close', web: 'close' }}");
+    expect(shopping).toContain('testID={`shopping-edit-save-${item.id}`}');
+    expect(shopping).toContain('testID={`shopping-edit-cancel-${item.id}`}');
+  });
+
+  it('gives the quantity field room instead of a fixed narrow width', () => {
+    const style = shopping.slice(shopping.indexOf('  editQuantityInput: {'));
+    expect(style.slice(0, 120)).toContain('flex: 1');
+    expect(style.slice(0, 120)).toContain('minWidth: 72');
+  });
+
+  it('uses one heading style for "Lista zakupów" and "Kupione"', () => {
+    expect(shopping).toContain('<View style={styles.sectionHeader}>');
+    expect(shopping).toContain('<View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>');
+    expect(
+      shopping.match(/style=\{\[styles\.sectionTitle, \{ color: colors\.text \}\]\}/g),
+    ).toHaveLength(2);
+  });
+});
+
 describe('tasks layout contract', () => {
   it('splits open tasks into today (overdue included) and later', () => {
     expect(todo).toContain("type DueGroup = 'today' | 'later';");
@@ -211,13 +238,34 @@ describe('tasks layout contract', () => {
     expect(localization).toContain("todoLater: 'Później'");
   });
 
-  it('shows section and group headings without counters', () => {
-    expect(todo).toContain('{text.todoUpcoming}');
-    expect(todo).toContain('{text.todoCompletedSection}');
-    expect(todo).toContain('{group.title}');
+  it('shows Dzisiaj, Później and Zrobione as three identical sections with centred headings', () => {
+    expect(todo).not.toContain('todoUpcoming');
+    expect(todo.match(/styles\.panel,/g)).toHaveLength(2);
+    expect(todo).toContain('testID={`todo-group-${group.key}`}');
+    expect(todo).toContain('testID="todo-group-completed"');
+    expect(todo).toContain(
+      "panelHeading: { fontSize: 16, fontWeight: '700', textAlign: 'center' }",
+    );
+    expect(todo).toContain("position: 'absolute'");
     expect(todo).not.toContain('({pendingItems.length})');
     expect(todo).not.toContain('({completedItems.length})');
     expect(todo).not.toContain('({group.items.length})');
+  });
+
+  it('assigns with inline person icons, the current user first, and "Wszyscy"', () => {
+    expect(todo).toContain('{text.todoMembers}:');
+    expect(todo).toContain('...members.filter((member) => member.user_id === currentUserId),');
+    expect(todo).toContain('testID={`${testID}-all`}');
+    expect(todo).toContain('onPress={() => onChange([])}');
+    expect(todo).not.toContain('-toggle`}');
+    expect(localization).toContain("todoNoAssignees: 'Wszyscy'");
+  });
+
+  it('keeps the optional deadline behind a compact button', () => {
+    const picker = readFileSync(resolve(root, 'features/todo/TodoDatePicker.tsx'), 'utf8');
+    expect(picker).toContain('`+ ${text.todoDueDatePlaceholder}`');
+    expect(picker).toContain('{isOpen ? (');
+    expect(localization).toContain("todoDueDatePlaceholder: 'Termin'");
   });
 
   it('offers editing only for tasks that are not completed', () => {

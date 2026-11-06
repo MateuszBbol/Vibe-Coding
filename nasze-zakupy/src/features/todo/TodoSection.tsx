@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { SymbolView } from 'expo-symbols';
 import {
   ActivityIndicator,
@@ -56,14 +57,21 @@ function formatMemberNames(names: string[]): string {
     : names.join(', ');
 }
 
+function memberLabel(member: TodoMember): string {
+  return member.display_name?.trim() || `Użytkownik ${member.user_id.slice(0, 8)}`;
+}
+
+// "Przypisz do: [me] [member] … [Wszyscy]". No selection means the task is for everyone.
 function TodoMemberPicker({
   members,
+  currentUserId,
   selectedIds,
   onChange,
   disabled,
   testID,
 }: {
   members: TodoMember[];
+  currentUserId: string;
   selectedIds: string[];
   onChange: (userIds: string[]) => void;
   disabled: boolean;
@@ -72,80 +80,98 @@ function TodoMemberPicker({
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   const text = strings.pl.shopping;
-  const [expanded, setExpanded] = useState(false);
+  const orderedMembers = [
+    ...members.filter((member) => member.user_id === currentUserId),
+    ...members.filter((member) => member.user_id !== currentUserId),
+  ];
+  const everyoneSelected = selectedIds.length === 0;
+
+  const avatar = (selected: boolean, content: ReactNode) => (
+    <View
+      style={[
+        styles.avatar,
+        selected
+          ? { backgroundColor: colors.accent, borderColor: colors.accent }
+          : { backgroundColor: colors.background, borderColor: colors.border },
+      ]}
+    >
+      {content}
+    </View>
+  );
 
   return (
-    <View style={styles.memberPicker}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled, expanded }}
-        testID={`${testID}-toggle`}
-        disabled={disabled}
-        onPress={() => setExpanded((open) => !open)}
-        style={[
-          styles.memberPickerToggle,
-          { backgroundColor: colors.background, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.memberPickerLabel, { color: colors.text }]}>{text.todoMembers}</Text>
-        <Text style={[styles.memberPickerSummary, { color: colors.secondaryText }]}>
-          {selectedIds.length
-            ? formatMemberNames(
-                members
-                  .filter((member) => selectedIds.includes(member.user_id))
-                  .map(
-                    (member) =>
-                      member.display_name?.trim() || `Użytkownik ${member.user_id.slice(0, 8)}`,
-                  ),
+    <View testID={`${testID}-options`} style={styles.memberPicker}>
+      <Text style={[styles.memberPickerLabel, { color: colors.text }]}>{text.todoMembers}:</Text>
+      {orderedMembers.map((member) => {
+        const selected = selectedIds.includes(member.user_id);
+        const label = memberLabel(member);
+        const isMe = member.user_id === currentUserId;
+        return (
+          <Pressable
+            key={member.user_id}
+            accessibilityRole="checkbox"
+            accessibilityLabel={isMe ? `${text.todoMe} (${label})` : label}
+            accessibilityState={{ checked: selected, disabled }}
+            aria-checked={selected}
+            testID={`${testID}-member-${member.user_id}`}
+            disabled={disabled}
+            onPress={() =>
+              onChange(
+                selected
+                  ? selectedIds.filter((userId) => userId !== member.user_id)
+                  : [...selectedIds, member.user_id],
               )
-            : text.todoNoAssignees}
-        </Text>
-        <Text style={[styles.memberPickerArrow, { color: colors.accent }]}>
-          {expanded ? '⌃' : '⌄'}
+            }
+            style={({ pressed }) => [styles.memberChip, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            {avatar(
+              selected,
+              <Text
+                style={[styles.avatarText, { color: selected ? colors.background : colors.text }]}
+              >
+                {label.charAt(0).toLocaleUpperCase('pl-PL')}
+              </Text>,
+            )}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.memberChipLabel,
+                { color: selected ? colors.accent : colors.secondaryText },
+              ]}
+            >
+              {isMe ? text.todoMe : label}
+            </Text>
+          </Pressable>
+        );
+      })}
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityLabel={text.todoNoAssignees}
+        accessibilityState={{ checked: everyoneSelected, disabled }}
+        aria-checked={everyoneSelected}
+        testID={`${testID}-all`}
+        disabled={disabled}
+        onPress={() => onChange([])}
+        style={({ pressed }) => [styles.memberChip, { opacity: pressed ? 0.7 : 1 }]}
+      >
+        {avatar(
+          everyoneSelected,
+          <SymbolView
+            name={{ ios: 'person.2', android: 'group', web: 'group' }}
+            tintColor={everyoneSelected ? colors.background : colors.secondaryText}
+            size={18}
+          />,
+        )}
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.memberChipLabel,
+            { color: everyoneSelected ? colors.accent : colors.secondaryText },
+          ]}
+        >
+          {text.todoNoAssignees}
         </Text>
       </Pressable>
-      {expanded ? (
-        <View
-          testID={`${testID}-options`}
-          style={[styles.memberOptions, { borderColor: colors.border }]}
-        >
-          {members.length ? (
-            members.map((member) => {
-              const selected = selectedIds.includes(member.user_id);
-              const label =
-                member.display_name?.trim() || `Użytkownik ${member.user_id.slice(0, 8)}`;
-              return (
-                <Pressable
-                  key={member.user_id}
-                  accessibilityRole="checkbox"
-                  accessibilityLabel={label}
-                  accessibilityState={{ checked: selected, disabled }}
-                  aria-checked={selected}
-                  testID={`${testID}-member-${member.user_id}`}
-                  disabled={disabled}
-                  onPress={() =>
-                    onChange(
-                      selected
-                        ? selectedIds.filter((userId) => userId !== member.user_id)
-                        : [...selectedIds, member.user_id],
-                    )
-                  }
-                  style={styles.memberOption}
-                >
-                  <Text style={[styles.memberCheck, { color: colors.accent }]}>
-                    {selected ? '☑' : '☐'}
-                  </Text>
-                  <Text style={[styles.memberName, { color: colors.text }]}>{label}</Text>
-                </Pressable>
-              );
-            })
-          ) : (
-            <Text style={[styles.memberEmpty, { color: colors.secondaryText }]}>
-              {text.todoNoMembers}
-            </Text>
-          )}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -382,13 +408,12 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
   const today = formatDateForStorage(now);
   const pendingItems = items.filter((item) => !item.completed).sort(sortByDeadline);
   const completedItems = items.filter((item) => item.completed).sort(sortByDeadline);
-  const groupedItems = (['today', 'later'] as const)
-    .map((key) => ({
-      key,
-      title: { today: text.todoToday, later: text.todoLater }[key],
-      items: pendingItems.filter((item) => getDueGroup(item.due_date, today) === key),
-    }))
-    .filter((group) => group.items.length > 0);
+  const groupedItems = (['today', 'later'] as const).map((key) => ({
+    key,
+    title: { today: text.todoToday, later: text.todoLater }[key],
+    empty: { today: text.todoNoToday, later: text.todoNoLater }[key],
+    items: pendingItems.filter((item) => getDueGroup(item.due_date, today) === key),
+  }));
 
   const renderItem = (item: TodoItem) => {
     const isEditing = editingId === item.id;
@@ -453,6 +478,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
               />
               <TodoMemberPicker
                 members={members}
+                currentUserId={userId}
                 selectedIds={editAssigneeIds}
                 onChange={setEditAssigneeIds}
                 disabled={isPending}
@@ -643,6 +669,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
       />
       <TodoMemberPicker
         members={members}
+        currentUserId={userId}
         selectedIds={newAssigneeIds}
         onChange={setNewAssigneeIds}
         disabled={addMutation.isPending || membersQuery.isError}
@@ -710,48 +737,38 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         </Text>
       ) : (
         <>
-          <View
-            testID="todo-upcoming-panel"
-            style={[
-              styles.upcomingPanel,
-              { backgroundColor: colors.background, borderColor: colors.border },
-            ]}
-          >
-            <Text
-              accessibilityRole="header"
-              testID="todo-upcoming-count"
-              style={[styles.panelHeading, { color: colors.text }]}
+          {/* Three identical sections: Dzisiaj, Później and Zrobione (collapsible). */}
+          {groupedItems.map((group) => (
+            <View
+              key={group.key}
+              testID={`todo-group-${group.key}`}
+              style={[
+                styles.panel,
+                { backgroundColor: colors.background, borderColor: colors.border },
+              ]}
             >
-              {text.todoUpcoming}
-            </Text>
-            {pendingItems.length ? (
-              groupedItems.map((group) => (
-                <View key={group.key} testID={`todo-group-${group.key}`}>
-                  <Text
-                    accessibilityRole="header"
-                    style={[
-                      styles.groupHeading,
-                      {
-                        color: group.key === 'today' ? '#B54708' : colors.secondaryText,
-                      },
-                    ]}
-                  >
-                    {group.title}
-                  </Text>
-                  <View style={styles.items}>{group.items.map(renderItem)}</View>
-                </View>
-              ))
-            ) : (
-              <Text style={[styles.panelEmpty, { color: colors.secondaryText }]}>
-                {text.todoNoUpcoming}
-              </Text>
-            )}
-          </View>
+              <View style={styles.panelHeader}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.panelHeading, { color: colors.text }]}
+                >
+                  {group.title}
+                </Text>
+              </View>
+              {group.items.length ? (
+                <View style={styles.items}>{group.items.map(renderItem)}</View>
+              ) : (
+                <Text style={[styles.panelEmpty, { color: colors.secondaryText }]}>
+                  {group.empty}
+                </Text>
+              )}
+            </View>
+          ))}
           <View
             testID="todo-group-completed"
             style={[
-              styles.completedPanel,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              styles.panel,
+              { backgroundColor: colors.background, borderColor: colors.border },
             ]}
           >
             <Pressable
@@ -759,11 +776,11 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
               accessibilityState={{ expanded: completedExpanded }}
               testID="todo-completed-toggle"
               onPress={() => setCompletedExpanded((expanded) => !expanded)}
-              style={styles.completedToggle}
+              style={styles.panelHeader}
             >
               <Text
                 accessibilityRole="header"
-                style={[styles.panelHeading, { color: colors.secondaryText }]}
+                style={[styles.panelHeading, { color: colors.text }]}
               >
                 {text.todoCompletedSection}
               </Text>
@@ -813,45 +830,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   addButtonText: { fontSize: 15, fontWeight: '700' },
-  memberPicker: { width: '100%' },
-  memberPickerToggle: {
-    minHeight: 42,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.two,
+  memberPicker: {
+    width: '100%',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: Spacing.one,
+    columnGap: Spacing.two,
+    rowGap: Spacing.one,
   },
-  memberPickerLabel: { fontSize: 14, fontWeight: '600' },
-  memberPickerSummary: { flex: 1, fontSize: 13, textAlign: 'right' },
-  memberPickerArrow: { fontSize: 17 },
-  memberOptions: { borderWidth: 1, borderRadius: 10, padding: Spacing.one, marginTop: Spacing.one },
-  memberOption: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  memberCheck: { width: 24, textAlign: 'center', fontSize: 17 },
-  memberName: { flex: 1, fontSize: 14 },
-  memberEmpty: { padding: Spacing.two, fontSize: 13 },
+  memberPickerLabel: { fontSize: 14, fontWeight: '600', marginRight: Spacing.one },
+  memberChip: { width: 56, minHeight: 56, alignItems: 'center', gap: 2 },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 15, fontWeight: '700' },
+  memberChipLabel: { maxWidth: 56, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   error: { color: '#B42318', fontSize: 14, lineHeight: 21, marginTop: Spacing.one },
   empty: { fontSize: 14, lineHeight: 21, paddingVertical: Spacing.three },
   message: { fontSize: 14, lineHeight: 21 },
   link: { fontSize: 14, fontWeight: '600' },
   items: { marginTop: -Spacing.one },
-  upcomingPanel: {
+  panel: {
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    marginBottom: Spacing.three,
+    paddingBottom: Spacing.one,
+    marginTop: Spacing.two,
   },
-  completedPanel: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    opacity: 0.82,
+  // Centred heading; the collapse arrow is pinned right so it does not shift the title.
+  panelHeader: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  panelHeading: { fontSize: 14, fontWeight: '700' },
-  panelEmpty: { paddingVertical: Spacing.two, fontSize: 13 },
+  panelHeading: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  panelEmpty: { paddingVertical: Spacing.two, fontSize: 13, textAlign: 'center' },
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -869,12 +887,10 @@ const styles = StyleSheet.create({
   itemActions: { flexDirection: 'row', alignItems: 'center' },
   iconButton: { width: 38, height: 42, alignItems: 'center', justifyContent: 'center' },
   actionButton: { minHeight: 36, justifyContent: 'center' },
-  groupHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: Spacing.one,
-    marginBottom: Spacing.one,
+  completedArrow: {
+    position: 'absolute',
+    right: Spacing.one,
+    fontSize: 18,
+    paddingHorizontal: Spacing.two,
   },
-  completedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  completedArrow: { fontSize: 18, paddingHorizontal: Spacing.two },
 });
