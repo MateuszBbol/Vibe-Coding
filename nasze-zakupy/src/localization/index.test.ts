@@ -25,25 +25,34 @@ describe('foundation translations', () => {
     expect(Object.keys(strings.en.recipes)).toEqual(Object.keys(strings.pl.recipes));
   });
 
-  it('uses shopping-list terminology in all user-facing Polish and English copy', () => {
+  it('calls the shared container a space (Przestrzeń) and keeps "Lista zakupów" for products', () => {
     expect(collectStringValues(strings.pl).join(' ')).not.toMatch(/gospodarst/i);
     expect(collectStringValues(strings.en).join(' ')).not.toMatch(/households?/i);
-    expect(strings.pl.household.managementTitle).toBe('Moje listy');
-    expect(strings.pl.household.listTitle).toBe('Moje listy');
-    expect(strings.pl.household.newHousehold).toBe('Nowa lista zakupowa');
-    expect(strings.pl.household.householdCount(3)).toBe('3 z 3 list');
-    expect(strings.pl.household.activeLabel).toBe('Aktywna lista');
-    expect(strings.pl.household.leaveButton).toBe('Opuść listę');
-    expect(strings.pl.household.deleteHouseholdButton).toBe('Usuń listę');
-    expect(strings.pl.household.invitationsTitle).toBe('Udostępnianie listy');
-    expect(strings.pl.household.joinTitle).toBe('Dołącz do listy');
-    expect(strings.pl.household.inviteTitle).toBe('Udostępnij listę');
-    expect(strings.pl.household.codeLabel).toBe('Kod zaproszenia do listy');
+    expect(strings.pl.navigation.lists).toBe('Przestrzenie');
+    expect(strings.en.navigation.lists).toBe('Spaces');
+    expect(strings.pl.household.managementTitle).toBe('Moje przestrzenie');
+    expect(strings.pl.household.listTitle).toBe('Moje przestrzenie');
+    expect(strings.pl.household.newHousehold).toBe('Nowa przestrzeń');
+    expect(strings.pl.household.householdCount(3)).toBe('3 z 3 przestrzeni');
+    expect(strings.pl.household.activeLabel).toBe('Aktywna przestrzeń');
+    expect(strings.pl.household.leaveButton).toBe('Opuść przestrzeń');
+    expect(strings.pl.household.deleteHouseholdButton).toBe('Usuń przestrzeń');
+    expect(strings.pl.household.invitationsTitle).toBe('Udostępnianie przestrzeni');
+    expect(strings.pl.household.joinTitle).toBe('Dołącz do przestrzeni');
+    expect(strings.pl.household.inviteTitle).toBe('Udostępnij przestrzeń');
+    expect(strings.pl.household.codeLabel).toBe('Kod zaproszenia do przestrzeni');
     expect(strings.pl.featureErrors.householdLimit).toBe(
-      'Możesz korzystać maksymalnie z 3 list zakupowych.',
+      'Możesz korzystać maksymalnie z 3 przestrzeni.',
     );
-    expect(strings.pl.featureErrors.deleteNotFound).toBe('Ta lista zakupowa już nie istnieje.');
-    expect(strings.pl.featureErrors.deleteOwnerOnly).toBe('Tylko właściciel może usunąć tę listę.');
+    expect(strings.pl.featureErrors.deleteNotFound).toBe('Ta przestrzeń już nie istnieje.');
+    expect(strings.pl.featureErrors.deleteOwnerOnly).toBe(
+      'Tylko właściciel może usunąć tę przestrzeń.',
+    );
+    // The container is never called a "lista" any more; only the product list is.
+    for (const value of collectStringValues(strings.pl.household)) {
+      // "lista zakupów" / "listy zakupowej" refer to the product list and are allowed.
+      expect(value).not.toMatch(/\blist(a|y|ę|ą)\b(?!\s+zakup)/i);
+    }
     expect(strings.pl.shopping.toBuy).toBe('Lista zakupów');
     expect(strings.en.shopping.toBuy).toBe('Shopping list');
     expect(collectStringValues(strings.pl.shopping).join(' ')).not.toContain('Do kupienia');

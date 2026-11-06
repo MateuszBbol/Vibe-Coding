@@ -38,7 +38,7 @@ export function ShoppingAppHeader({
     <View style={styles.container}>
       {/* Equal-width side columns keep the title centred on the screen. */}
       <View style={[styles.side, styles.left]}>
-        {/* Read-only identity: lists are managed from the "Listy" section of the bottom bar. */}
+        {/* Read-only identity: spaces are managed from the "Przestrzenie" section of the bottom bar. */}
         <View
           accessible
           accessibilityLabel={`${userName}, ${listLabel}`}
