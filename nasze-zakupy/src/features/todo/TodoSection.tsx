@@ -61,7 +61,8 @@ function memberLabel(member: TodoMember): string {
   return member.display_name?.trim() || `Użytkownik ${member.user_id.slice(0, 8)}`;
 }
 
-// "Przypisz do: [me] [member] … [Wszyscy]". No selection means the task is for everyone.
+// "Przypisz do: [me] [member] …". Nobody is selected by default; tapping a person
+// toggles them, so a task can be assigned to someone or to no one.
 function TodoMemberPicker({
   members,
   currentUserId,
@@ -84,7 +85,6 @@ function TodoMemberPicker({
     ...members.filter((member) => member.user_id === currentUserId),
     ...members.filter((member) => member.user_id !== currentUserId),
   ];
-  const everyoneSelected = selectedIds.length === 0;
 
   const avatar = (selected: boolean, content: ReactNode) => (
     <View
@@ -144,34 +144,6 @@ function TodoMemberPicker({
           </Pressable>
         );
       })}
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityLabel={text.todoNoAssignees}
-        accessibilityState={{ checked: everyoneSelected, disabled }}
-        aria-checked={everyoneSelected}
-        testID={`${testID}-all`}
-        disabled={disabled}
-        onPress={() => onChange([])}
-        style={({ pressed }) => [styles.memberChip, { opacity: pressed ? 0.7 : 1 }]}
-      >
-        {avatar(
-          everyoneSelected,
-          <SymbolView
-            name={{ ios: 'person.2', android: 'group', web: 'group' }}
-            tintColor={everyoneSelected ? colors.background : colors.secondaryText}
-            size={18}
-          />,
-        )}
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.memberChipLabel,
-            { color: everyoneSelected ? colors.accent : colors.secondaryText },
-          ]}
-        >
-          {text.todoNoAssignees}
-        </Text>
-      </Pressable>
     </View>
   );
 }
@@ -604,21 +576,21 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                     </Text>
                   </View>
                 ) : null}
-                <View style={styles.metadataItem}>
-                  <SymbolView
-                    name={{ ios: 'person.2', android: 'group', web: 'group' }}
-                    tintColor={colors.secondaryText}
-                    size={14}
-                  />
-                  <Text
-                    testID={`todo-item-assignees-${item.id}`}
-                    style={[styles.assignmentSummary, { color: colors.secondaryText }]}
-                  >
-                    {assignmentSummary
-                      ? text.todoAssignedTo(assignmentSummary)
-                      : text.todoNoAssignees}
-                  </Text>
-                </View>
+                {assignmentSummary ? (
+                  <View style={styles.metadataItem}>
+                    <SymbolView
+                      name={{ ios: 'person.2', android: 'group', web: 'group' }}
+                      tintColor={colors.secondaryText}
+                      size={14}
+                    />
+                    <Text
+                      testID={`todo-item-assignees-${item.id}`}
+                      style={[styles.assignmentSummary, { color: colors.secondaryText }]}
+                    >
+                      {text.todoAssignedTo(assignmentSummary)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </>
           )}
@@ -632,90 +604,91 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
       testID="todo-section"
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
-      style={[
-        styles.section,
-        { backgroundColor: colors.card, borderColor: colors.border },
-        !visible ? styles.hidden : null,
-      ]}
+      style={[styles.container, !visible ? styles.hidden : null]}
     >
-      <TextInput
-        accessibilityLabel={text.todoAdd}
-        testID="todo-title-input"
-        editable={!addMutation.isPending}
-        onChangeText={setNewTitle}
-        onSubmitEditing={() => {
-          if (!addMutation.isPending && validateInput(newTitle, newDueDate)) {
-            addMutation.mutate({
-              title: newTitle,
-              dueDate: newDueDate,
-              assigneeIds: newAssigneeIds,
-            });
-          }
-        }}
-        placeholder={text.todoAddPlaceholder}
-        placeholderTextColor={colors.secondaryText}
-        returnKeyType="done"
-        style={[
-          styles.input,
-          { backgroundColor: colors.background, borderColor: colors.border, color: colors.text },
-        ]}
-        value={newTitle}
-      />
-      <TodoDatePicker
-        value={newDueDate}
-        onChange={setNewDueDate}
-        disabled={addMutation.isPending}
-        testID="todo-due-date-input"
-      />
-      <TodoMemberPicker
-        members={members}
-        currentUserId={userId}
-        selectedIds={newAssigneeIds}
-        onChange={setNewAssigneeIds}
-        disabled={addMutation.isPending || membersQuery.isError}
-        testID="todo-add-assignees"
-      />
-      {membersQuery.isError ? (
-        <Text accessibilityRole="alert" testID="todo-members-error-message" style={styles.error}>
-          {text.todoMembersLoadFailed}
-        </Text>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: addMutation.isPending }}
-        testID="todo-add-button"
-        disabled={addMutation.isPending}
-        onPress={() => {
-          setActionError(null);
-          if (validateInput(newTitle, newDueDate)) {
-            addMutation.mutate({
-              title: newTitle,
-              dueDate: newDueDate,
-              assigneeIds: newAssigneeIds,
-            });
-          }
-        }}
-        style={({ pressed }) => [
-          styles.addButton,
-          { backgroundColor: colors.accent, opacity: pressed || addMutation.isPending ? 0.6 : 1 },
-        ]}
+      <View
+        testID="todo-add-section"
+        style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
       >
-        {addMutation.isPending ? (
-          <ActivityIndicator color={colors.background} size="small" />
-        ) : (
-          <Text style={[styles.addButtonText, { color: colors.background }]}>{text.todoAdd}</Text>
-        )}
-      </Pressable>
-      {isRealtimeError ? (
-        <Text accessibilityRole="alert" testID="todo-realtime-error-message" style={styles.error}>
-          {text.todoRealtimeFailed}
-        </Text>
-      ) : null}
-      {actionError ? (
-        <Text accessibilityRole="alert" testID="todo-action-error-message" style={styles.error}>
-          {actionError}
-        </Text>
-      ) : null}
+        <TextInput
+          accessibilityLabel={text.todoAdd}
+          testID="todo-title-input"
+          editable={!addMutation.isPending}
+          onChangeText={setNewTitle}
+          onSubmitEditing={() => {
+            if (!addMutation.isPending && validateInput(newTitle, newDueDate)) {
+              addMutation.mutate({
+                title: newTitle,
+                dueDate: newDueDate,
+                assigneeIds: newAssigneeIds,
+              });
+            }
+          }}
+          placeholder={text.todoAddPlaceholder}
+          placeholderTextColor={colors.secondaryText}
+          returnKeyType="done"
+          style={[
+            styles.input,
+            { backgroundColor: colors.background, borderColor: colors.border, color: colors.text },
+          ]}
+          value={newTitle}
+        />
+        <TodoDatePicker
+          value={newDueDate}
+          onChange={setNewDueDate}
+          disabled={addMutation.isPending}
+          testID="todo-due-date-input"
+        />
+        <TodoMemberPicker
+          members={members}
+          currentUserId={userId}
+          selectedIds={newAssigneeIds}
+          onChange={setNewAssigneeIds}
+          disabled={addMutation.isPending || membersQuery.isError}
+          testID="todo-add-assignees"
+        />
+        {membersQuery.isError ? (
+          <Text accessibilityRole="alert" testID="todo-members-error-message" style={styles.error}>
+            {text.todoMembersLoadFailed}
+          </Text>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: addMutation.isPending }}
+          testID="todo-add-button"
+          disabled={addMutation.isPending}
+          onPress={() => {
+            setActionError(null);
+            if (validateInput(newTitle, newDueDate)) {
+              addMutation.mutate({
+                title: newTitle,
+                dueDate: newDueDate,
+                assigneeIds: newAssigneeIds,
+              });
+            }
+          }}
+          style={({ pressed }) => [
+            styles.addButton,
+            { backgroundColor: colors.accent, opacity: pressed || addMutation.isPending ? 0.6 : 1 },
+          ]}
+        >
+          {addMutation.isPending ? (
+            <ActivityIndicator color={colors.background} size="small" />
+          ) : (
+            <Text style={[styles.addButtonText, { color: colors.background }]}>{text.todoAdd}</Text>
+          )}
+        </Pressable>
+        {isRealtimeError ? (
+          <Text accessibilityRole="alert" testID="todo-realtime-error-message" style={styles.error}>
+            {text.todoRealtimeFailed}
+          </Text>
+        ) : null}
+        {actionError ? (
+          <Text accessibilityRole="alert" testID="todo-action-error-message" style={styles.error}>
+            {actionError}
+          </Text>
+        ) : null}
+      </View>
       {itemsQuery.isPending ? (
         <ActivityIndicator testID="todo-loading" color={colors.accent} size="small" />
       ) : itemsQuery.isError ? (
@@ -742,10 +715,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
             <View
               key={group.key}
               testID={`todo-group-${group.key}`}
-              style={[
-                styles.panel,
-                { backgroundColor: colors.background, borderColor: colors.border },
-              ]}
+              style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}
             >
               <View style={styles.panelHeader}>
                 <Text
@@ -766,10 +736,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
           ))}
           <View
             testID="todo-group-completed"
-            style={[
-              styles.panel,
-              { backgroundColor: colors.background, borderColor: colors.border },
-            ]}
+            style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <Pressable
               accessibilityRole="button"
@@ -805,12 +772,13 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
 }
 
 const styles = StyleSheet.create({
+  container: { marginBottom: Spacing.four },
   section: {
-    gap: Spacing.two,
+    gap: Spacing.three,
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: Spacing.three,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.two,
   },
   hidden: { display: 'none' },
   input: {
@@ -819,7 +787,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: Spacing.two,
-    fontSize: 15,
+    // 16 px avoids the iOS Safari zoom on focus.
+    fontSize: 16,
   },
   addButton: {
     minHeight: 44,

@@ -1024,8 +1024,6 @@ export function ShoppingHome({
                         keyboardType="decimal-pad"
                         onBlur={onBlur}
                         onChangeText={onChange}
-                        placeholder={text.quantityPlaceholder}
-                        placeholderTextColor={colors.secondaryText}
                         returnKeyType="done"
                         style={[
                           styles.quantityInput,
@@ -1055,7 +1053,10 @@ export function ShoppingHome({
                         accessibilityState={{ expanded: showUnitOptions }}
                         testID="shopping-unit-select"
                         disabled={addMutation.isPending}
-                        onPress={() => setShowUnitOptions((visible) => !visible)}
+                        onPress={() => {
+                          setShowCategoryOptions(false);
+                          setShowUnitOptions((visible) => !visible);
+                        }}
                         style={[
                           styles.selectorButton,
                           {
@@ -1074,72 +1075,6 @@ export function ShoppingHome({
                           {showUnitOptions ? '‹' : '⌄'}
                         </Text>
                       </Pressable>
-                      {showUnitOptions ? (
-                        <View style={styles.unitOptions}>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: value === null }}
-                            testID="shopping-unit-option-none"
-                            disabled={addMutation.isPending}
-                            onPress={() => {
-                              onChange(null);
-                              setShowUnitOptions(false);
-                            }}
-                            style={[
-                              styles.unitOption,
-                              {
-                                backgroundColor:
-                                  value === null ? colors.accentSoft : colors.background,
-                                borderColor: value === null ? colors.accent : colors.border,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.unitOptionText,
-                                { color: value === null ? colors.accent : colors.text },
-                              ]}
-                            >
-                              {text.noUnit}
-                            </Text>
-                          </Pressable>
-                          {shoppingUnits.map((unit) => {
-                            const selected = value === unit;
-                            return (
-                              <Pressable
-                                key={unit}
-                                accessibilityRole="button"
-                                accessibilityLabel={`${text.unitLabel}: ${unit}`}
-                                accessibilityState={{ selected }}
-                                testID={`shopping-unit-option-${unit}`}
-                                disabled={addMutation.isPending}
-                                onPress={() => {
-                                  onChange(unit);
-                                  setShowUnitOptions(false);
-                                }}
-                                style={[
-                                  styles.unitOption,
-                                  {
-                                    backgroundColor: selected
-                                      ? colors.accentSoft
-                                      : colors.background,
-                                    borderColor: selected ? colors.accent : colors.border,
-                                  },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.unitOptionText,
-                                    { color: selected ? colors.accent : colors.text },
-                                  ]}
-                                >
-                                  {unit}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      ) : null}
                     </View>
                   )}
                 />
@@ -1157,7 +1092,10 @@ export function ShoppingHome({
                         accessibilityState={{ expanded: showCategoryOptions }}
                         testID="shopping-category-select"
                         disabled={addMutation.isPending}
-                        onPress={() => setShowCategoryOptions((visible) => !visible)}
+                        onPress={() => {
+                          setShowUnitOptions(false);
+                          setShowCategoryOptions((visible) => !visible);
+                        }}
                         style={[
                           styles.selectorButton,
                           {
@@ -1176,50 +1114,129 @@ export function ShoppingHome({
                           {showCategoryOptions ? '‹' : '›'}
                         </Text>
                       </Pressable>
-                      {showCategoryOptions ? (
-                        <View style={styles.categoryOptions}>
-                          {shoppingCategories.map((category) => {
-                            const selected = getShoppingCategory(value).id === category.id;
-                            return (
-                              <Pressable
-                                key={category.id}
-                                accessibilityRole="button"
-                                accessibilityLabel={`${category.emoji} ${category.label}`}
-                                accessibilityState={{ selected }}
-                                testID={`shopping-category-option-${category.id}`}
-                                disabled={addMutation.isPending}
-                                onPress={() => {
-                                  categoryManuallyOverridden.current = true;
-                                  onChange(category.id);
-                                  setShowCategoryOptions(false);
-                                }}
-                                style={[
-                                  styles.categoryOption,
-                                  {
-                                    backgroundColor: selected
-                                      ? colors.accentSoft
-                                      : colors.background,
-                                    borderColor: selected ? colors.accent : colors.border,
-                                  },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.categoryOptionText,
-                                    { color: selected ? colors.accent : colors.text },
-                                  ]}
-                                >
-                                  {category.emoji} {category.label}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      ) : null}
                     </View>
                   )}
                 />
               </View>
+              {/* Option lists open under the whole row so labels are not cut by a narrow column. */}
+              <Controller
+                control={control}
+                name="unit"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    {showUnitOptions ? (
+                      <View style={styles.unitOptions}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: value === null }}
+                          testID="shopping-unit-option-none"
+                          disabled={addMutation.isPending}
+                          onPress={() => {
+                            onChange(null);
+                            setShowUnitOptions(false);
+                          }}
+                          style={[
+                            styles.unitOption,
+                            {
+                              backgroundColor:
+                                value === null ? colors.accentSoft : colors.background,
+                              borderColor: value === null ? colors.accent : colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.unitOptionText,
+                              { color: value === null ? colors.accent : colors.text },
+                            ]}
+                          >
+                            {text.noUnit}
+                          </Text>
+                        </Pressable>
+                        {shoppingUnits.map((unit) => {
+                          const selected = value === unit;
+                          return (
+                            <Pressable
+                              key={unit}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${text.unitLabel}: ${unit}`}
+                              accessibilityState={{ selected }}
+                              testID={`shopping-unit-option-${unit}`}
+                              disabled={addMutation.isPending}
+                              onPress={() => {
+                                onChange(unit);
+                                setShowUnitOptions(false);
+                              }}
+                              style={[
+                                styles.unitOption,
+                                {
+                                  backgroundColor: selected ? colors.accentSoft : colors.background,
+                                  borderColor: selected ? colors.accent : colors.border,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.unitOptionText,
+                                  { color: selected ? colors.accent : colors.text },
+                                ]}
+                              >
+                                {unit}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              />
+              <Controller
+                control={control}
+                name="category"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    {showCategoryOptions ? (
+                      <View style={styles.categoryOptions}>
+                        {shoppingCategories.map((category) => {
+                          const selected = getShoppingCategory(value).id === category.id;
+                          return (
+                            <Pressable
+                              key={category.id}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${category.emoji} ${category.label}`}
+                              accessibilityState={{ selected }}
+                              testID={`shopping-category-option-${category.id}`}
+                              disabled={addMutation.isPending}
+                              onPress={() => {
+                                categoryManuallyOverridden.current = true;
+                                onChange(category.id);
+                                setShowCategoryOptions(false);
+                              }}
+                              style={[
+                                styles.categoryOption,
+                                {
+                                  backgroundColor: selected ? colors.accentSoft : colors.background,
+                                  borderColor: selected ? colors.accent : colors.border,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.categoryOptionText,
+                                  { color: selected ? colors.accent : colors.text },
+                                ]}
+                              >
+                                {category.emoji} {category.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              />
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ disabled: addMutation.isPending }}
@@ -1509,6 +1526,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
   },
+  // 16 px text: smaller inputs make iOS Safari zoom in on focus and cut the layout.
   nameInput: {
     flex: 1,
     minWidth: 0,
@@ -1516,7 +1534,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: Spacing.two,
-    fontSize: 14,
+    fontSize: 16,
   },
   quantityInput: {
     width: '100%',
@@ -1524,9 +1542,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderWidth: 1,
     borderRadius: 12,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.one,
-    fontSize: 14,
+    paddingHorizontal: Spacing.two,
+    fontSize: 16,
   },
   addButton: {
     width: '100%',
@@ -1560,13 +1577,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   selectorButton: {
-    minHeight: 36,
+    height: 44,
     width: '100%',
     minWidth: 0,
     flexShrink: 1,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.one,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.two,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1574,7 +1591,7 @@ const styles = StyleSheet.create({
   },
   selectorValue: {
     flexShrink: 1,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '500',
   },
   selectorChange: {
@@ -1585,7 +1602,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.one,
-    marginTop: Spacing.one,
+    marginTop: Spacing.two,
   },
   unitOption: {
     minHeight: 32,
@@ -1599,10 +1616,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   categoryOptions: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.one,
-    marginTop: Spacing.one,
+    marginTop: Spacing.two,
   },
   categoryOption: {
     minHeight: 34,

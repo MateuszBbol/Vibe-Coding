@@ -202,6 +202,38 @@ describe('screen layout contract', () => {
   });
 });
 
+describe('shopping add form contract', () => {
+  it('uses 16 px text in product inputs so iOS does not zoom on focus', () => {
+    for (const name of ['  nameInput: {', '  quantityInput: {']) {
+      const style = shopping.slice(shopping.indexOf(name));
+      expect(style.slice(0, 220)).toContain('fontSize: 16');
+    }
+  });
+
+  it('shows quantity without a centred hint, at the same height as the selectors', () => {
+    const quantity = shopping.slice(shopping.indexOf('testID="shopping-quantity-input"'));
+    expect(quantity.slice(0, quantity.indexOf('/>'))).not.toContain('placeholder=');
+    const input = shopping.slice(shopping.indexOf('  quantityInput: {'));
+    expect(input.slice(0, 220)).not.toContain("textAlign: 'center'");
+    expect(input.slice(0, 220)).toContain('height: 44');
+    const selector = shopping.slice(shopping.indexOf('  selectorButton: {'));
+    expect(selector.slice(0, 80)).toContain('height: 44');
+  });
+
+  it('opens unit and category choices under the whole row, full width', () => {
+    const row = shopping.indexOf('style={styles.selectorsRow}');
+    const unitList = shopping.indexOf('<View style={styles.unitOptions}>');
+    const categoryList = shopping.indexOf('<View style={styles.categoryOptions}>');
+    const addButton = shopping.indexOf('testID="shopping-add-button"');
+    expect(unitList).toBeGreaterThan(row);
+    expect(categoryList).toBeGreaterThan(unitList);
+    expect(categoryList).toBeLessThan(addButton);
+    const options = shopping.slice(shopping.indexOf('  categoryOptions: {'));
+    expect(options.slice(0, 160)).toContain("width: '100%'");
+    expect(options.slice(0, 160)).toContain("flexWrap: 'wrap'");
+  });
+});
+
 describe('shopping item edit form contract', () => {
   it('hides the checkbox and row actions while editing and uses check / X icons', () => {
     const guard = shopping.indexOf('{isEditing ? null : (');
@@ -252,13 +284,28 @@ describe('tasks layout contract', () => {
     expect(todo).not.toContain('({group.items.length})');
   });
 
-  it('assigns with inline person icons, the current user first, and "Wszyscy"', () => {
+  it('assigns with inline person icons, the current user first, nobody selected by default', () => {
     expect(todo).toContain('{text.todoMembers}:');
     expect(todo).toContain('...members.filter((member) => member.user_id === currentUserId),');
-    expect(todo).toContain('testID={`${testID}-all`}');
-    expect(todo).toContain('onPress={() => onChange([])}');
+    expect(todo).not.toContain('-all`}');
+    expect(todo).not.toContain('onChange([])');
+    expect(todo).toContain('const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([]);');
     expect(todo).not.toContain('-toggle`}');
-    expect(localization).toContain("todoNoAssignees: 'Wszyscy'");
+    expect(localization).not.toContain('todoNoAssignees');
+  });
+
+  it('keeps the add-task form in its own card, separate from the task sections', () => {
+    const form = todo.indexOf('testID="todo-add-section"');
+    expect(form).toBeGreaterThan(-1);
+    expect(form).toBeLessThan(todo.indexOf('testID="todo-title-input"'));
+    expect(todo.indexOf('testID="todo-action-error-message"')).toBeLessThan(
+      todo.indexOf('testID="todo-loading"'),
+    );
+  });
+
+  it('uses 16 px text in task inputs so iOS does not zoom on focus', () => {
+    const input = todo.slice(todo.indexOf('  input: {'));
+    expect(input.slice(0, 260)).toContain('fontSize: 16');
   });
 
   it('keeps the optional deadline behind a compact button', () => {
