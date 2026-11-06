@@ -35,14 +35,12 @@ type TodoSectionProps = {
   visible: boolean;
 };
 
-type DueGroup = 'overdue' | 'today' | 'tomorrow' | 'upcoming' | 'noDeadline';
+type DueGroup = 'today' | 'later';
 
-function getDueGroup(dueDate: string | null, today: string, tomorrow: string): DueGroup {
-  if (!dueDate) return 'noDeadline';
-  if (dueDate < today) return 'overdue';
-  if (dueDate === today) return 'today';
-  if (dueDate === tomorrow) return 'tomorrow';
-  return 'upcoming';
+// Two buckets: what needs doing today (overdue included) and everything later
+// (tomorrow, later dates and tasks without a deadline).
+function getDueGroup(dueDate: string | null, today: string): DueGroup {
+  return dueDate && dueDate <= today ? 'today' : 'later';
 }
 
 function sortByDeadline(left: TodoItem, right: TodoItem): number {
@@ -382,22 +380,13 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
   const membersById = new Map(members.map((member) => [member.user_id, member]));
   const now = new Date();
   const today = formatDateForStorage(now);
-  const tomorrow = formatDateForStorage(
-    new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
-  );
   const pendingItems = items.filter((item) => !item.completed).sort(sortByDeadline);
   const completedItems = items.filter((item) => item.completed).sort(sortByDeadline);
-  const groupedItems = (['overdue', 'today', 'tomorrow', 'upcoming', 'noDeadline'] as const)
+  const groupedItems = (['today', 'later'] as const)
     .map((key) => ({
       key,
-      title: {
-        overdue: text.todoOverdue,
-        today: text.todoToday,
-        tomorrow: text.todoTomorrow,
-        upcoming: text.todoLater,
-        noDeadline: text.todoNoDeadline,
-      }[key],
-      items: pendingItems.filter((item) => getDueGroup(item.due_date, today, tomorrow) === key),
+      title: { today: text.todoToday, later: text.todoLater }[key],
+      items: pendingItems.filter((item) => getDueGroup(item.due_date, today) === key),
     }))
     .filter((group) => group.items.length > 0);
 
@@ -520,22 +509,25 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                   {item.title}
                 </Text>
                 <View style={styles.itemActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={text.todoEdit}
-                    accessibilityHint={text.todoEdit}
-                    testID={`todo-edit-${item.id}`}
-                    disabled={isPending}
-                    onPress={() => beginEdit(item)}
-                    hitSlop={6}
-                    style={styles.iconButton}
-                  >
-                    <SymbolView
-                      name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
-                      tintColor={colors.secondaryText}
-                      size={18}
-                    />
-                  </Pressable>
+                  {/* Completed tasks are not edited; uncheck a task first to change it. */}
+                  {item.completed ? null : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={text.todoEdit}
+                      accessibilityHint={text.todoEdit}
+                      testID={`todo-edit-${item.id}`}
+                      disabled={isPending}
+                      onPress={() => beginEdit(item)}
+                      hitSlop={6}
+                      style={styles.iconButton}
+                    >
+                      <SymbolView
+                        name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                        tintColor={colors.secondaryText}
+                        size={18}
+                      />
+                    </Pressable>
+                  )}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={text.todoDelete}
@@ -730,7 +722,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
               testID="todo-upcoming-count"
               style={[styles.panelHeading, { color: colors.text }]}
             >
-              {text.todoUpcoming} ({pendingItems.length})
+              {text.todoUpcoming}
             </Text>
             {pendingItems.length ? (
               groupedItems.map((group) => (
@@ -740,16 +732,11 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                     style={[
                       styles.groupHeading,
                       {
-                        color:
-                          group.key === 'overdue'
-                            ? '#B42318'
-                            : group.key === 'today'
-                              ? '#B54708'
-                              : colors.secondaryText,
+                        color: group.key === 'today' ? '#B54708' : colors.secondaryText,
                       },
                     ]}
                   >
-                    {group.title} ({group.items.length})
+                    {group.title}
                   </Text>
                   <View style={styles.items}>{group.items.map(renderItem)}</View>
                 </View>
@@ -778,7 +765,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                 accessibilityRole="header"
                 style={[styles.panelHeading, { color: colors.secondaryText }]}
               >
-                {text.todoCompletedSection} ({completedItems.length})
+                {text.todoCompletedSection}
               </Text>
               <Text style={[styles.completedArrow, { color: colors.secondaryText }]}>
                 {completedExpanded ? '⌃' : '⌄'}

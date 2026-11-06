@@ -735,7 +735,13 @@ export function ShoppingHome({
             {formatShoppingItemQuantity(item.quantity, item.unit) ? (
               <Text
                 testID={`shopping-item-quantity-${item.id}`}
-                style={[styles.quantity, { color: colors.secondaryText }]}
+                style={[
+                  styles.quantity,
+                  {
+                    color: colors.secondaryText,
+                    textDecorationLine: item.is_purchased ? 'line-through' : 'none',
+                  },
+                ]}
               >
                 {formatShoppingItemQuantity(item.quantity, item.unit)}
               </Text>
@@ -743,23 +749,28 @@ export function ShoppingHome({
           </View>
         )}
         <View style={styles.itemActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={text.editItem}
-            accessibilityHint={text.editItem}
-            accessibilityState={{ disabled: isItemActionPending }}
-            testID={`shopping-item-edit-${item.id}`}
-            disabled={isItemActionPending}
-            onPress={() => (isEditing ? cancelItemEdit() : beginItemEdit(item))}
-            hitSlop={6}
-            style={styles.itemActionButton}
-          >
-            <SymbolView
-              name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
-              tintColor={colors.secondaryText}
-              size={18}
-            />
-          </Pressable>
+          {/* Only items still to buy can be edited; the spacer keeps the delete icons aligned. */}
+          {item.is_purchased && !isEditing ? (
+            <View style={styles.itemActionButton} />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={text.editItem}
+              accessibilityHint={text.editItem}
+              accessibilityState={{ disabled: isItemActionPending }}
+              testID={`shopping-item-edit-${item.id}`}
+              disabled={isItemActionPending}
+              onPress={() => (isEditing ? cancelItemEdit() : beginItemEdit(item))}
+              hitSlop={6}
+              style={styles.itemActionButton}
+            >
+              <SymbolView
+                name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                tintColor={colors.secondaryText}
+                size={18}
+              />
+            </Pressable>
+          )}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={text.deleteItem}
@@ -1275,6 +1286,13 @@ export function ShoppingHome({
               </View>
             ) : (
               <>
+                <Text
+                  accessibilityRole="header"
+                  testID="shopping-to-buy-title"
+                  style={[styles.sectionTitle, { color: colors.text }]}
+                >
+                  {text.toBuy}
+                </Text>
                 {itemsToBuy.length > 0 ? (
                   itemsToBuy.map(({ category, items: categoryItems }) => (
                     <View key={category.id} testID={`shopping-category-${category.id}`}>
@@ -1307,7 +1325,7 @@ export function ShoppingHome({
                         accessibilityRole="header"
                         style={[styles.sectionTitle, { color: colors.text }]}
                       >
-                        {text.purchased} ({purchasedItems.length})
+                        {text.purchased}
                       </Text>
                       <Pressable
                         accessibilityRole="button"

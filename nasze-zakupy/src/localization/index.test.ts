@@ -44,8 +44,8 @@ describe('foundation translations', () => {
     );
     expect(strings.pl.featureErrors.deleteNotFound).toBe('Ta lista zakupowa już nie istnieje.');
     expect(strings.pl.featureErrors.deleteOwnerOnly).toBe('Tylko właściciel może usunąć tę listę.');
-    expect(strings.pl.shopping.toBuy).toBe('Lista');
-    expect(strings.en.shopping.toBuy).toBe('List');
+    expect(strings.pl.shopping.toBuy).toBe('Lista zakupów');
+    expect(strings.en.shopping.toBuy).toBe('Shopping list');
     expect(collectStringValues(strings.pl.shopping).join(' ')).not.toContain('Do kupienia');
   });
 });

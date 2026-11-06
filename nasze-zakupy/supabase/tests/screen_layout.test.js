@@ -16,6 +16,7 @@ const localization = readFileSync(resolve(root, 'localization/index.ts'), 'utf8'
 const recipeRoutes = readFileSync(resolve(root, 'features/recipes/routes.ts'), 'utf8');
 const bottomNav = readFileSync(resolve(root, 'components/AppBottomNav.tsx'), 'utf8');
 const householdRoutes = readFileSync(resolve(root, 'features/households/routes.ts'), 'utf8');
+const todo = readFileSync(resolve(root, 'features/todo/TodoSection.tsx'), 'utf8');
 
 describe('screen layout contract', () => {
   it('keeps one create action and a text-only empty state for recipes', () => {
@@ -120,11 +121,14 @@ describe('screen layout contract', () => {
     expect(shoppingHeader).toContain("fontWeight: '700'");
   });
 
-  it('does not repeat the shopping list heading after the product form', () => {
-    expect(localization).toContain("toBuy: 'Lista'");
-    expect(localization).toContain("toBuy: 'List'");
+  it('labels the items to buy as "Lista zakupów" once, above the product groups', () => {
+    expect(localization).toContain("toBuy: 'Lista zakupów'");
+    expect(localization).toContain("toBuy: 'Shopping list'");
     expect(localization).not.toContain("toBuy: 'Do kupienia'");
-    expect(shopping).not.toContain('{text.toBuy}');
+    expect(shopping.match(/\{text\.toBuy\}/g)).toHaveLength(1);
+    expect(shopping.indexOf('testID="shopping-to-buy-title"')).toBeLessThan(
+      shopping.indexOf('itemsToBuy.length > 0 ? ('),
+    );
     expect(shopping).not.toContain("toLocaleUpperCase('pl-PL')");
     expect(screenHeader).toContain('fontSize: 24');
     expect(screenHeader).toContain('fontSize: 26');
@@ -176,10 +180,49 @@ describe('screen layout contract', () => {
     expect(shopping).toContain('height: 48');
   });
 
-  it('renders the purchased section only when it has items and includes its count', () => {
+  it('renders the purchased section only when it has items, without a counter', () => {
     expect(shopping).toContain('purchasedItems.length > 0 ? (');
-    expect(shopping).toContain('{text.purchased} ({purchasedItems.length})');
+    expect(shopping).toContain('{text.purchased}');
+    expect(shopping).not.toContain('({purchasedItems.length})');
     expect(shopping).not.toContain('text.emptyPurchased');
     expect(shopping).not.toContain('styles.listFooter');
+  });
+
+  it('edits only items still to buy and strikes through quantity of purchased items', () => {
+    expect(shopping).toContain('{item.is_purchased && !isEditing ? (');
+    expect(shopping.indexOf('{item.is_purchased && !isEditing ? (')).toBeLessThan(
+      shopping.indexOf('testID={`shopping-item-edit-${item.id}`}'),
+    );
+    const quantity = shopping.slice(
+      shopping.indexOf('testID={`shopping-item-quantity-${item.id}`}'),
+    );
+    expect(quantity.slice(0, 300)).toContain(
+      "textDecorationLine: item.is_purchased ? 'line-through' : 'none'",
+    );
+  });
+});
+
+describe('tasks layout contract', () => {
+  it('splits open tasks into today (overdue included) and later', () => {
+    expect(todo).toContain("type DueGroup = 'today' | 'later';");
+    expect(todo).toContain("return dueDate && dueDate <= today ? 'today' : 'later';");
+    expect(todo).toContain("(['today', 'later'] as const)");
+    expect(localization).toContain("todoToday: 'Dzisiaj'");
+    expect(localization).toContain("todoLater: 'Później'");
+  });
+
+  it('shows section and group headings without counters', () => {
+    expect(todo).toContain('{text.todoUpcoming}');
+    expect(todo).toContain('{text.todoCompletedSection}');
+    expect(todo).toContain('{group.title}');
+    expect(todo).not.toContain('({pendingItems.length})');
+    expect(todo).not.toContain('({completedItems.length})');
+    expect(todo).not.toContain('({group.items.length})');
+  });
+
+  it('offers editing only for tasks that are not completed', () => {
+    const guard = todo.indexOf('{item.completed ? null : (');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(todo.indexOf('testID={`todo-edit-${item.id}`}'));
   });
 });
