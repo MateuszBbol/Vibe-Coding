@@ -100,22 +100,20 @@ describe('screen layout contract', () => {
     expect(home).toContain('household={activeHousehold}');
   });
 
-  it('centres the title and keeps the truncated user and list block in the top-right corner', () => {
+  it('centres the title with the user and list block top-left and logout top-right', () => {
     // Equal side columns around the title keep it centred on the screen.
-    expect(shoppingHeader).toContain('<View style={styles.side} />');
+    expect(shoppingHeader).toContain('<View style={[styles.side, styles.left]}>');
     expect(shoppingHeader).toContain('<View style={[styles.side, styles.right]}>');
     expect(shoppingHeader).toContain('flexBasis: 0');
     expect(shoppingHeader).toContain("textAlign: 'center'");
-    expect(shoppingHeader.indexOf('<View style={styles.side} />')).toBeLessThan(
-      shoppingHeader.indexOf('{title}'),
-    );
-    expect(shoppingHeader.indexOf('{title}')).toBeLessThan(
-      shoppingHeader.indexOf('testID="profile-identity"'),
-    );
+    const identity = shoppingHeader.indexOf('testID="profile-identity"');
+    const title = shoppingHeader.indexOf('{title}');
+    const logout = shoppingHeader.indexOf('testID="profile-logout-button"');
+    expect(identity).toBeGreaterThan(-1);
+    expect(identity).toBeLessThan(title);
+    expect(title).toBeLessThan(logout);
+    expect(shoppingHeader).toContain("justifyContent: 'flex-start'");
     expect(shoppingHeader).toContain("justifyContent: 'flex-end'");
-    expect(shoppingHeader.indexOf('testID="profile-identity"')).toBeLessThan(
-      shoppingHeader.indexOf('testID="profile-logout-button"'),
-    );
     expect(shoppingHeader.match(/numberOfLines={1}/g)).toHaveLength(3);
     expect(shoppingHeader.match(/ellipsizeMode="tail"/g)).toHaveLength(2);
     expect(shoppingHeader).toContain('fontSize: 25');
