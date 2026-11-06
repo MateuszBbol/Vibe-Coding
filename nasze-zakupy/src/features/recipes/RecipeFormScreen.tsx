@@ -233,7 +233,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                 <View style={styles.stepActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={text.moveStepUp}
+                    accessibilityLabel={`${text.moveStepUp}: ${index + 1}`}
                     testID={`recipe-step-${index}-move-up-button`}
                     disabled={mutation.isPending || index === 0}
                     onPress={() => moveStep(index, index - 1)}
@@ -242,7 +242,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={text.moveStepDown}
+                    accessibilityLabel={`${text.moveStepDown}: ${index + 1}`}
                     testID={`recipe-step-${index}-move-down-button`}
                     disabled={mutation.isPending || index === stepFields.length - 1}
                     onPress={() => moveStep(index, index + 1)}
@@ -251,6 +251,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={`${text.removeStep}: ${text.preparationStep} ${index + 1}`}
                     testID={`recipe-step-${index}-remove-button`}
                     disabled={mutation.isPending}
                     onPress={() => removeStep(index)}
@@ -317,9 +318,10 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                 name={`steps.${index}.ingredient_keys`}
                 render={({ field: { onChange, value } }) => {
                   const selectedKeys = value ?? [];
-                  const choices = watchedItems.filter(
-                    (item) => item.key && item.name.trim().length > 0,
-                  );
+                  // Keep each ingredient's position: it is the stable part of the test id.
+                  const choices = watchedItems
+                    .map((item, itemIndex) => ({ item, itemIndex }))
+                    .filter(({ item }) => item.key && item.name.trim().length > 0);
                   return choices.length ? (
                     <View
                       testID={`recipe-step-${index}-ingredients`}
@@ -329,7 +331,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                         {text.stepIngredients}
                       </Text>
                       <View style={styles.stepIngredientChips}>
-                        {choices.map((item) => {
+                        {choices.map(({ item, itemIndex }) => {
                           const key = item.key ?? '';
                           const selected = selectedKeys.includes(key);
                           return (
@@ -342,7 +344,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
                               }}
                               aria-checked={selected}
                               accessibilityLabel={item.name}
-                              testID={`recipe-step-${index}-ingredient-${item.name.trim()}`}
+                              testID={`recipe-step-${index}-ingredient-${itemIndex}`}
                               disabled={mutation.isPending}
                               onPress={() =>
                                 onChange(
@@ -402,7 +404,7 @@ export function RecipeFormScreen({ recipeId }: RecipeFormScreenProps) {
           {fields.map((field, index) => (
             <RecipeIngredientForm
               key={field.id}
-              testID={`recipe-ingredient-${field.id}`}
+              testID={`recipe-ingredient-${index}`}
               indexTestID={`recipe-ingredient-category-select-${index}`}
               index={index}
               control={form.control}
@@ -485,6 +487,7 @@ function RecipeIngredientForm({
         {canRemove ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={`${text.removeIngredient} ${index + 1}`}
             testID={`${testID}-remove-button`}
             disabled={disabled}
             onPress={remove}
@@ -606,6 +609,8 @@ function RecipeIngredientForm({
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: categoryOptionsVisible, disabled }}
+                accessibilityLabel={`${text.category}: ${category.label}`}
+                aria-expanded={categoryOptionsVisible}
                 testID={indexTestID}
                 disabled={disabled}
                 onPress={() => setCategoryOptionsVisible((visible) => !visible)}
@@ -625,6 +630,7 @@ function RecipeIngredientForm({
                       key={option.id}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: option.id === value, disabled }}
+                      aria-checked={option.id === value}
                       testID={`${indexTestID}-option-${option.id}`}
                       disabled={disabled}
                       onPress={() => {

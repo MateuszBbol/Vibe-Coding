@@ -232,6 +232,7 @@ export function RecipeCookScreen({ recipeId }: { recipeId: string }) {
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ expanded: ingredientsOpen }}
+              aria-expanded={ingredientsOpen}
               testID="recipe-cook-ingredients-toggle"
               onPress={() => setIngredientsOpen((open) => !open)}
               style={styles.ingredientsToggle}

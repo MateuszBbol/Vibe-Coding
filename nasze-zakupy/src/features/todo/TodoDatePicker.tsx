@@ -79,6 +79,7 @@ export function TodoDatePicker({
               accessibilityRole="button"
               accessibilityLabel={text.todoDatePickerLabel}
               accessibilityState={{ disabled, expanded: isOpen }}
+              aria-expanded={isOpen}
               testID={testID}
               disabled={disabled}
               onPress={() => setIsOpen((open) => !open)}

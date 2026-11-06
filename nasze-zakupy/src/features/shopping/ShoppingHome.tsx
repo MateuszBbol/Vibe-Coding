@@ -616,6 +616,8 @@ export function ShoppingHome({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={text.unitLabel}
+                accessibilityState={{ expanded: editUnitOptionsOpen }}
+                aria-expanded={editUnitOptionsOpen}
                 testID={`shopping-edit-unit-${item.id}`}
                 onPress={() => setEditUnitOptionsOpen((open) => !open)}
                 style={[
@@ -628,6 +630,8 @@ export function ShoppingHome({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={text.categoryLabel}
+                accessibilityState={{ expanded: editCategoryOptionsOpen }}
+                aria-expanded={editCategoryOptionsOpen}
                 testID={`shopping-edit-category-${item.id}`}
                 onPress={() => setEditCategoryOptionsOpen((open) => !open)}
                 style={[
@@ -674,8 +678,9 @@ export function ShoppingHome({
                 {shoppingCategories.map((category) => (
                   <Pressable
                     key={category.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: editCategory === category.id }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: editCategory === category.id }}
+                    aria-checked={editCategory === category.id}
                     testID={`shopping-edit-category-option-${category.id}`}
                     onPress={() => {
                       setEditCategory(category.id);
@@ -773,7 +778,7 @@ export function ShoppingHome({
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={text.editItem}
+                accessibilityLabel={`${text.editItem}: ${item.name}`}
                 accessibilityHint={text.editItem}
                 accessibilityState={{ disabled: isItemActionPending }}
                 testID={`shopping-item-edit-${item.id}`}
@@ -791,7 +796,7 @@ export function ShoppingHome({
             )}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={text.deleteItem}
+              accessibilityLabel={`${text.deleteItem}: ${item.name}`}
               accessibilityHint={text.deleteItem}
               accessibilityState={{ disabled: isItemActionPending }}
               testID={`shopping-item-delete-${item.id}`}
@@ -825,7 +830,7 @@ export function ShoppingHome({
   if (!list) {
     return (
       <SafeAreaView
-        testID="shopping-screen"
+        testID={activeTab === 'todo' ? 'todo-screen' : 'shopping-screen'}
         edges={['top', 'left', 'right']}
         style={[styles.safeArea, { backgroundColor: colors.background }]}
       >
@@ -908,7 +913,7 @@ export function ShoppingHome({
 
   return (
     <SafeAreaView
-      testID="shopping-screen"
+      testID={activeTab === 'todo' ? 'todo-screen' : 'shopping-screen'}
       edges={['top', 'left', 'right']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
@@ -1052,6 +1057,7 @@ export function ShoppingHome({
                         accessibilityRole="button"
                         accessibilityLabel={text.unitLabel}
                         accessibilityState={{ expanded: showUnitOptions }}
+                        aria-expanded={showUnitOptions}
                         testID="shopping-unit-select"
                         disabled={addMutation.isPending}
                         onPress={() => {
@@ -1091,6 +1097,7 @@ export function ShoppingHome({
                         accessibilityRole="button"
                         accessibilityLabel={`${text.categoryLabel}: ${getShoppingCategory(value).label}`}
                         accessibilityState={{ expanded: showCategoryOptions }}
+                        aria-expanded={showCategoryOptions}
                         testID="shopping-category-select"
                         disabled={addMutation.isPending}
                         onPress={() => {
@@ -1184,9 +1191,10 @@ export function ShoppingHome({
                           return (
                             <Pressable
                               key={category.id}
-                              accessibilityRole="button"
+                              accessibilityRole="radio"
                               accessibilityLabel={`${category.emoji} ${category.label}`}
-                              accessibilityState={{ selected }}
+                              accessibilityState={{ checked: selected }}
+                              aria-checked={selected}
                               testID={`shopping-category-option-${category.id}`}
                               disabled={addMutation.isPending}
                               onPress={() => {

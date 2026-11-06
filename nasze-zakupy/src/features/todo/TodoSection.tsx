@@ -579,7 +579,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                   {item.completed ? null : (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={text.todoEdit}
+                      accessibilityLabel={`${text.todoEdit}: ${item.title}`}
                       accessibilityHint={text.todoEdit}
                       testID={`todo-edit-${item.id}`}
                       disabled={isPending}
@@ -596,7 +596,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                   )}
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={text.todoDelete}
+                    accessibilityLabel={`${text.todoDelete}: ${item.title}`}
                     accessibilityHint={text.todoDelete}
                     testID={`todo-delete-${item.id}`}
                     disabled={isPending}
@@ -812,6 +812,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ expanded: completedExpanded }}
+              aria-expanded={completedExpanded}
               testID="todo-completed-toggle"
               onPress={() => setCompletedExpanded((expanded) => !expanded)}
               style={styles.panelHeader}

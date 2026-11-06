@@ -44,6 +44,8 @@ export function HouseholdSetup({
   onCancel,
   onCompleted,
 }: HouseholdSetupProps) {
+  // With only one form shown, its title repeats the screen title: keep a single heading.
+  const sectionTitleRole = showCreate && showJoin ? 'header' : undefined;
   const queryClient = useQueryClient();
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const colors = Colors[colorScheme];
@@ -107,7 +109,10 @@ export function HouseholdSetup({
         <View
           style={[styles.section, { borderColor: colors.border, backgroundColor: colors.card }]}
         >
-          <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+          <Text
+            accessibilityRole={sectionTitleRole}
+            style={[styles.sectionTitle, { color: colors.text }]}
+          >
             {text.createTitle}
           </Text>
           <Text style={[styles.sectionDescription, { color: colors.secondaryText }]}>
@@ -192,7 +197,10 @@ export function HouseholdSetup({
         <View
           style={[styles.section, { borderColor: colors.border, backgroundColor: colors.card }]}
         >
-          <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+          <Text
+            accessibilityRole={sectionTitleRole}
+            style={[styles.sectionTitle, { color: colors.text }]}
+          >
             {text.joinTitle}
           </Text>
           <Text style={[styles.sectionDescription, { color: colors.secondaryText }]}>
