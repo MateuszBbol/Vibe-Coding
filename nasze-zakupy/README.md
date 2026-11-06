@@ -49,7 +49,7 @@ Konto Supabase jest potrzebne, aby uruchomić logowanie. Konto Expo/EAS oraz App
 W PowerShell przejdź do katalogu aplikacji:
 
 ```powershell
-Set-Location C:\Projects-Playwright\nasze-zakupy
+Set-Location 'C:\Vibe Coding\nasze-zakupy'
 npm install
 npx expo start
 ```
@@ -65,7 +65,7 @@ Plik `.env` jest wymagany do połączenia z Supabase. Skopiuj `.env.example` do 
 3. W PowerShell:
 
    ```powershell
-   Set-Location C:\Projects-Playwright\nasze-zakupy
+   Set-Location 'C:\Vibe Coding\nasze-zakupy'
    Copy-Item .env.example .env
    notepad .env
    ```

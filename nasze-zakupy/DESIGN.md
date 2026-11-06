@@ -5,6 +5,7 @@ współlokatorów). Aplikacja jest napisana w Expo / React Native i działa jako
 oraz jako aplikacja mobilna. Projektujemy najpierw na telefon (ok. 390 px szerokości), jedną ręką.
 
 Źródła prawdy w kodzie:
+
 - tokeny: `src/constants/theme.ts`;
 - nagłówek: `src/components/ScreenHeader.tsx`;
 - dolna nawigacja: `src/components/AppBottomNav.tsx`;
@@ -34,24 +35,24 @@ Tryb jasny i ciemny dopasowuje się automatycznie (`userInterfaceStyle: automati
 kolory zawsze bierzemy z `Colors[dark ? 'dark' : 'light']`; nie wpisujemy wartości hex na sztywno,
 poza kolorami stanów z tabeli niżej.
 
-| Token           | Jasny     | Ciemny    | Zastosowanie                                               |
-| --------------- | --------- | --------- | ---------------------------------------------------------- |
-| `background`    | `#F7F7F2` | `#151915` | tło ekranu, tło pól tekstowych i niezaznaczonych chipów    |
-| `card`          | `#FFFFFF` | `#202620` | karty, przyciski drugorzędne, okrągły przycisk Wstecz      |
-| `text`          | `#20231F` | `#F2F4EE` | tekst główny                                               |
-| `secondaryText` | `#656B61` | `#B5BDB3` | podpisy, etykiety pól, ilości, ukończone pozycje           |
-| `border`        | `#E4E6DD` | `#343C34` | obramowania kart, pól i chipów                             |
-| `accent`        | `#427A55` | `#91C99B` | akcja główna, aktywna zakładka, ikony, zaznaczenie         |
-| `accentSoft`    | `#E7F0E7` | `#27372A` | tło zaznaczonego chipa i aktywnej ikony w nawigacji        |
+| Token           | Jasny     | Ciemny    | Zastosowanie                                            |
+| --------------- | --------- | --------- | ------------------------------------------------------- |
+| `background`    | `#F7F7F2` | `#151915` | tło ekranu, tło pól tekstowych i niezaznaczonych chipów |
+| `card`          | `#FFFFFF` | `#202620` | karty, przyciski drugorzędne, okrągły przycisk Wstecz   |
+| `text`          | `#20231F` | `#F2F4EE` | tekst główny                                            |
+| `secondaryText` | `#656B61` | `#B5BDB3` | podpisy, etykiety pól, ilości, ukończone pozycje        |
+| `border`        | `#E4E6DD` | `#343C34` | obramowania kart, pól i chipów                          |
+| `accent`        | `#427A55` | `#91C99B` | akcja główna, aktywna zakładka, ikony, zaznaczenie      |
+| `accentSoft`    | `#E7F0E7` | `#27372A` | tło zaznaczonego chipa i aktywnej ikony w nawigacji     |
 
 Kolory stanów (stałe w obu trybach):
 
-| Kolor     | Zastosowanie                                                      |
-| --------- | ----------------------------------------------------------------- |
-| `#B42318` | błędy, akcje destrukcyjne (Usuń przepis, Usuń listę, kosz)        |
-| `#B54708` | termin zadania: zaległe / dzisiaj                                 |
-| `#8C9386` | linia pod nagłówkiem ekranu                                       |
-| `#0B4426` | tło ikony aplikacji i ekranu startowego                           |
+| Kolor     | Zastosowanie                                               |
+| --------- | ---------------------------------------------------------- |
+| `#B42318` | błędy, akcje destrukcyjne (Usuń przepis, Usuń listę, kosz) |
+| `#B54708` | termin zadania: zaległe / dzisiaj                          |
+| `#8C9386` | linia pod nagłówkiem ekranu                                |
+| `#0B4426` | tło ikony aplikacji i ekranu startowego                    |
 
 Na akcencie piszemy tekstem w kolorze `#FFFFFF` (jasny) albo `#151915` (ciemny).
 
@@ -62,15 +63,15 @@ Na akcencie piszemy tekstem w kolorze `#FFFFFF` (jasny) albo `#151915` (ciemny).
 Domyślnie używamy fontu systemowego. Na webie stos fontów to `Spline Sans, Inter, system-ui`
 (`src/global.css`).
 
-| Rola                         | Rozmiar  | Grubość | Uwagi                                     |
-| ---------------------------- | -------- | ------- | ----------------------------------------- |
-| Tytuł aplikacji „Home”       | 28       | 700     | ekran główny, z ikoną domku               |
-| Tytuł ekranu                 | 24 / 26  | 700     | `ScreenHeader`, wyśrodkowany, max 2 linie |
-| Nagłówek sekcji              | 18–20    | 700     | „Dzisiaj”, „Później”, „Składniki”         |
-| Tekst pozycji / przycisku    | 16–17    | 600–700 | nazwa produktu, zadania, kroku            |
-| Pole tekstowe                | **16**   | 400     | minimum, by iOS nie powiększał ekranu     |
-| Tekst pomocniczy             | 14–15    | 400–600 | ilości, opisy, komunikaty                 |
-| Etykieta pola / małe podpisy | 12–13    | 600     | „Data”, „Wykonawca”, etykiety w nawigacji |
+| Rola                         | Rozmiar | Grubość | Uwagi                                     |
+| ---------------------------- | ------- | ------- | ----------------------------------------- |
+| Tytuł aplikacji „Home”       | 28      | 700     | ekran główny, z ikoną domku               |
+| Tytuł ekranu                 | 24 / 26 | 700     | `ScreenHeader`, wyśrodkowany, max 2 linie |
+| Nagłówek sekcji              | 18–20   | 700     | „Dzisiaj”, „Później”, „Składniki”         |
+| Tekst pozycji / przycisku    | 16–17   | 600–700 | nazwa produktu, zadania, kroku            |
+| Pole tekstowe                | **16**  | 400     | minimum, by iOS nie powiększał ekranu     |
+| Tekst pomocniczy             | 14–15   | 400–600 | ilości, opisy, komunikaty                 |
+| Etykieta pola / małe podpisy | 12–13   | 600     | „Data”, „Wykonawca”, etykiety w nawigacji |
 
 Interlinia wynosi ok. 1,2× rozmiaru dla tytułów i ok. 1,45× dla tekstu ciągłego (np. 15/22).
 
@@ -84,14 +85,14 @@ Skala odstępów (`Spacing`): `half 2 · one 4 · two 8 · three 16 · four 24 �
 - Odstęp wewnątrz karty: **8**.
 - Szerokość treści na dużych ekranach: max **560 px**, wyśrodkowana.
 
-| Element                          | Zaokrąglenie |
-| -------------------------------- | ------------ |
-| Karta                            | 16           |
-| Przycisk, pole tekstowe          | 12           |
-| Chip (jednostka, składnik, osoba)| 10–14        |
-| Okrągły przycisk Wstecz          | 22 (koło 44) |
-| Pigułka ikony w nawigacji        | 15 (56×30)   |
-| Checkbox zadania                 | koło         |
+| Element                           | Zaokrąglenie |
+| --------------------------------- | ------------ |
+| Karta                             | 16           |
+| Przycisk, pole tekstowe           | 12           |
+| Chip (jednostka, składnik, osoba) | 10–14        |
+| Okrągły przycisk Wstecz           | 22 (koło 44) |
+| Pigułka ikony w nawigacji         | 15 (56×30)   |
+| Checkbox zadania                  | koło         |
 
 Cele dotyku mają minimum **44×44**. Przyciski mają wysokość 48, a pozycje nawigacji 56.
 Obramowania mają grubość 1 px, linie podziału `hairlineWidth`.
@@ -142,10 +143,12 @@ Nieaktywne pozycje mają kolor `secondaryText` i grubość 500.
 ## 6. Komponenty
 
 ### Karta
+
 Tło `card`, obramowanie `border` 1 px, zaokrąglenie 16, padding 16, odstęp 8. Każdy formularz
 dodawania (zadanie, produkt) jest osobną kartą nad sekcjami z listą.
 
 ### Przyciski
+
 - **Główny:** tło `accent`, tekst w kolorze kontrastowym, wysokość 48, zaokrąglenie 12,
   tekst 16/700.
 - **Drugorzędny:** tło `card`, obramowanie `border`, tekst `text`.
@@ -158,12 +161,15 @@ dodawania (zadanie, produkt) jest osobną kartą nad sekcjami z listą.
   „Kupione” kosz czyści całą listę.
 
 ### Pola tekstowe
+
 Tło `background`, obramowanie `border`, zaokrąglenie 12, wysokość co najmniej 44, tekst 16.
 Etykieta pola jest nad polem, w rozmiarze 12–13/600 i kolorze `secondaryText`. Błąd wyświetlamy
 pod polem w kolorze `#B42318`, w rozmiarze 14.
 
 ### Chipy wyboru
+
 Służą do wyboru jednostki, osoby (wykonawcy) i składników kroku.
+
 - Niezaznaczony: tło `background`, obramowanie `border`, tekst `text`.
 - Zaznaczony: tło `accentSoft`, obramowanie i tekst `accent`, opcjonalny prefiks „✓ ”.
 - Ponowne kliknięcie odznacza chip. Na webie ustawiamy `aria-checked`, bo RNW nie przekazuje
@@ -172,6 +178,7 @@ Służą do wyboru jednostki, osoby (wykonawcy) i składników kroku.
   osoby, a ponownie kliknięty je odznacza.
 
 ### Wiersz listy (produkt / zadanie)
+
 - Po lewej checkbox: okrągły dla zadań, kwadratowy dla produktów. W trybie edycji checkbox znika.
 - Po prawej ilość lub termin, a potem ikona edycji. Pozycje ukończone i kupione są przekreślone,
   w kolorze `secondaryText` i bez możliwości edycji.
@@ -179,15 +186,18 @@ Służą do wyboru jednostki, osoby (wykonawcy) i składników kroku.
   nimi.
 
 ### Sekcje list
+
 - Zakupy: sekcja „Lista zakupów” i zwijana sekcja „Kupione”.
 - Zadania: sekcje „Dzisiaj” (zaległe i dzisiejsze), „Później” (przyszłe i bez terminu) oraz
   zwijana sekcja „Zrobione”.
 - Nagłówki sekcji są wyśrodkowane i nie mają liczników.
 
 ### Pusty stan
+
 Krótkie zdanie w rozmiarze 15/22, kolorze `secondaryText`, wyśrodkowane, z paddingiem 16.
 
 ### Tryb „Przyrządź”
+
 - Na górze jest zwijana karta „Składniki”. Pod nią lista kroków z pełnym tekstem i checkboxem
   po prawej.
 - Pod treścią kroku są jego składniki („• Mąka … 1 kg”, 15 / 14 `secondaryText`).
@@ -203,19 +213,19 @@ Krótkie zdanie w rozmiarze 15/22, kolorze `secondaryText`, wyśrodkowane, z pad
 Używamy `SymbolView` z `expo-symbols`, podając nazwę dla każdej platformy:
 `{ ios: <SF Symbol>, android: <Material>, web: <Material> }`.
 
-| Znaczenie         | iOS                          | Material             |
-| ----------------- | ---------------------------- | -------------------- |
-| Wstecz            | `chevron.left`               | `arrow_back`         |
-| Edytuj            | `pencil`                     | `edit`               |
-| Usuń              | `trash`                      | `delete_outline`     |
-| Zatwierdź / Anuluj| `checkmark` / `xmark`        | `check` / `close`    |
-| Data              | `calendar`                   | `calendar_today`     |
-| Przyrządź         | `frying.pan`                 | `skillet`            |
-| Do zakupów        | `cart.badge.plus`            | `add_shopping_cart`  |
-| Użytkownik        | `person.crop.circle`         | `account_circle`     |
-| Wyloguj           | `rectangle.portrait.and.arrow.right` | `logout`     |
-| Minutnik          | `play.fill` / `pause.fill` / `arrow.counterclockwise` | `play_arrow` / `pause` / `restart_alt` |
-| Ekran główny      | `house`                      | `home`               |
+| Znaczenie          | iOS                                                   | Material                               |
+| ------------------ | ----------------------------------------------------- | -------------------------------------- |
+| Wstecz             | `chevron.left`                                        | `arrow_back`                           |
+| Edytuj             | `pencil`                                              | `edit`                                 |
+| Usuń               | `trash`                                               | `delete_outline`                       |
+| Zatwierdź / Anuluj | `checkmark` / `xmark`                                 | `check` / `close`                      |
+| Data               | `calendar`                                            | `calendar_today`                       |
+| Przyrządź          | `frying.pan`                                          | `skillet`                              |
+| Do zakupów         | `cart.badge.plus`                                     | `add_shopping_cart`                    |
+| Użytkownik         | `person.crop.circle`                                  | `account_circle`                       |
+| Wyloguj            | `rectangle.portrait.and.arrow.right`                  | `logout`                               |
+| Minutnik           | `play.fill` / `pause.fill` / `arrow.counterclockwise` | `play_arrow` / `pause` / `restart_alt` |
+| Ekran główny       | `house`                                               | `home`                                 |
 
 Rozmiar ikony to 22–24 w przyciskach i ok. 28 w dużych kaflach. Kolor to `accent`, a przy
 akcjach destrukcyjnych `#B42318`.
