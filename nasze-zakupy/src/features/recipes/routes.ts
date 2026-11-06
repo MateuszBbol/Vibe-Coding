@@ -28,6 +28,12 @@ export const recipeRoutes = {
       pathname: '/recipes/[recipeId]/edit',
       params: { householdId, recipeId },
     }) as Href,
+  // "Przyrządź": cooking mode with the steps and checkboxes.
+  cook: (householdId: string, recipeId: string) =>
+    ({
+      pathname: '/recipes/[recipeId]/cook',
+      params: { householdId, recipeId },
+    }) as Href,
 } as const;
 
 export const recipeQueryKeys = {

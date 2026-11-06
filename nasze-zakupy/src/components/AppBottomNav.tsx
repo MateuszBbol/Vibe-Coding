@@ -86,11 +86,13 @@ export function AppBottomNav({
 
   const select = (item: NavItem) => {
     if (nested) {
-      // Leave the detail screen first so the history does not keep growing.
-      router.dismissAll();
-      if (item.section !== active) {
-        router.replace(item.href);
+      // Leave the detail screen first so the history does not keep growing, then open the
+      // section's root. Replacing also works when the page was opened without history
+      // (e.g. after a browser refresh), where there is nothing to go back to.
+      if (router.canDismiss()) {
+        router.dismissAll();
       }
+      router.replace(item.href);
       return;
     }
     if (item.section === active) {

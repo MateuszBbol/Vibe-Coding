@@ -24,6 +24,10 @@ describe('recipe navigation routes', () => {
       pathname: '/recipes/[recipeId]/edit',
       params: { householdId: 'household-1', recipeId },
     });
+    expect(recipeRoutes.cook('household-1', recipeId)).toEqual({
+      pathname: '/recipes/[recipeId]/cook',
+      params: { householdId: 'household-1', recipeId },
+    });
   });
 
   it('accepts only canonical UUID recipe IDs', () => {

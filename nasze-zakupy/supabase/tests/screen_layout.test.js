@@ -355,7 +355,13 @@ describe('recipe page and list overview requests', () => {
 
   it('shows three large icon actions under the recipe instead of text buttons', () => {
     expect(recipeDetails).not.toContain('<RecipeButton');
-    expect(recipeDetails.match(/<RecipeIconAction/g)).toHaveLength(3);
+    // "Przyrządź" first, then add to list, edit, delete.
+    expect(recipeDetails.match(/<RecipeIconAction/g)).toHaveLength(4);
+    expect(recipeDetails.indexOf('testID={`recipe-cook-button-${recipeId}`}')).toBeLessThan(
+      recipeDetails.indexOf('testID="recipe-add-to-shopping-list-button"'),
+    );
+    expect(recipeDetails).toContain('router.push(recipeRoutes.cook(household.id, recipe.id))');
+    expect(recipeDetails).toContain('disabled={recipeQuery.data.steps.length === 0}');
     for (const id of [
       'testID="recipe-add-to-shopping-list-button"',
       'testID={`recipe-edit-button-${recipeId}`}',
@@ -438,6 +444,31 @@ describe('edit icons, purchased trash, round checkbox and graphic back button', 
     expect(screenHeader).toContain('accessibilityLabel="Wstecz"');
     expect(screenHeader).toContain("ios: 'chevron.left'");
     expect(screenHeader).not.toContain('‹ Wstecz');
+  });
+});
+
+describe('cooking mode (Przyrządź)', () => {
+  const cook = readFileSync(resolve(root, 'features/recipes/RecipeCookScreen.tsx'), 'utf8');
+
+  it('lists every step with its text, duration and a round checkbox on the right', () => {
+    expect(cook).toContain('testID={`recipe-cook-step-${index}-text`}');
+    const body = cook.indexOf('<View style={styles.stepBody}>');
+    const checkbox = cook.indexOf('testID={`recipe-cook-step-${index}-checkbox`}');
+    expect(body).toBeGreaterThan(-1);
+    expect(checkbox).toBeGreaterThan(body);
+    expect(cook).toContain('accessibilityRole="checkbox"');
+    expect(cook).toMatch(/checkCircle: \{[^}]*borderRadius: 15/);
+  });
+
+  it('keeps progress on this device, shows ingredients, a timer, keep-awake and "Smacznego!"', () => {
+    expect(cook).toContain('readCookProgress(userId, recipeId');
+    expect(cook).toContain('saveCookProgress(userId, recipeId, next)');
+    expect(cook).toContain('testID="recipe-cook-ingredients-toggle"');
+    expect(cook).toContain('<StepTimer');
+    expect(cook).toContain('activateKeepAwakeAsync(KEEP_AWAKE_TAG)');
+    expect(cook).toContain('deactivateKeepAwake(KEEP_AWAKE_TAG)');
+    expect(cook).toContain('testID="recipe-cook-done"');
+    expect(localization).toContain("cookDoneTitle: 'Smacznego!'");
   });
 });
 

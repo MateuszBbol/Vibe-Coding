@@ -287,6 +287,22 @@ export default function RecipeDetailsRoute() {
           ) : null}
           <View style={styles.actionRow}>
             <RecipeIconAction
+              label={text.cookShort}
+              accessibilityLabel={text.cook}
+              icon={{ ios: 'frying.pan', android: 'skillet', web: 'skillet' }}
+              testID={`recipe-cook-button-${recipeId}`}
+              color={colors.background}
+              backgroundColor={colors.accent}
+              captionColor={colors.text}
+              disabled={recipeQuery.data.steps.length === 0}
+              onPress={() => {
+                const recipe = recipeQuery.data;
+                if (recipe) {
+                  router.push(recipeRoutes.cook(household.id, recipe.id));
+                }
+              }}
+            />
+            <RecipeIconAction
               label={text.addAllShort}
               accessibilityLabel={addMutation.isPending ? text.saving : text.addAll}
               icon={{
