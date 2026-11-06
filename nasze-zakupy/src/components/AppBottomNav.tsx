@@ -67,14 +67,30 @@ type AppBottomNavProps = {
   counts?: Partial<Record<AppSection, number>>;
   // On the home screen, shopping and tasks switch in place instead of reloading the screen.
   onSelectHomeSection?: (section: HomeSection) => void;
+  // Shown on a screen opened inside a section (e.g. a recipe): tapping any section,
+  // including the current one, first returns to that section's root screen.
+  nested?: boolean;
 };
 
-export function AppBottomNav({ active, counts, onSelectHomeSection }: AppBottomNavProps) {
+export function AppBottomNav({
+  active,
+  counts,
+  onSelectHomeSection,
+  nested = false,
+}: AppBottomNavProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
 
   const select = (item: NavItem) => {
+    if (nested) {
+      // Leave the detail screen first so the history does not keep growing.
+      router.dismissAll();
+      if (item.section !== active) {
+        router.replace(item.href);
+      }
+      return;
+    }
     if (item.section === active) {
       return;
     }

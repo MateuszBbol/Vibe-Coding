@@ -52,7 +52,9 @@ describe('screen layout contract', () => {
     expect(shopping).toContain("edges={['top', 'left', 'right']}");
     expect(shopping.lastIndexOf('</ScrollView>')).toBeLessThan(shopping.lastIndexOf('{bottomNav}'));
     expect(householdUI).toContain('{section ? <AppBottomNav active={section} /> : null}');
-    expect(recipeUI).toContain('{section ? <AppBottomNav active={section} /> : null}');
+    expect(recipeUI).toContain(
+      '{section ? <AppBottomNav active={section} nested={nestedNav} /> : null}',
+    );
   });
 
   it('keeps the section in the URL and switches home sections in place', () => {
@@ -121,7 +123,7 @@ describe('screen layout contract', () => {
     expect(shoppingHeader).toContain("justifyContent: 'flex-end'");
     expect(shoppingHeader.match(/numberOfLines={1}/g)).toHaveLength(3);
     expect(shoppingHeader.match(/ellipsizeMode="tail"/g)).toHaveLength(2);
-    expect(shoppingHeader).toContain('fontSize: 30');
+    expect(shoppingHeader).toContain('fontSize: 34');
     expect(shoppingHeader).toContain("fontWeight: '700'");
   });
 
@@ -136,7 +138,7 @@ describe('screen layout contract', () => {
     expect(shopping).not.toContain("toLocaleUpperCase('pl-PL')");
     expect(screenHeader).toContain('fontSize: 24');
     expect(screenHeader).toContain('fontSize: 26');
-    expect(shoppingHeader).toContain('fontSize: 30');
+    expect(shoppingHeader).toContain('fontSize: 34');
     expect(localization).not.toContain('todoTitle:');
     expect(localization).toContain("todoTab: 'Zadania'");
     expect(localization).toContain("todoTab: 'Tasks'");
@@ -288,6 +290,62 @@ describe('shopping item edit form contract', () => {
   });
 });
 
+describe('latest layout requests', () => {
+  const picker = readFileSync(resolve(root, 'features/todo/TodoDatePicker.tsx'), 'utf8');
+  const recipeForm = readFileSync(resolve(root, 'features/recipes/RecipeFormScreen.tsx'), 'utf8');
+  const recipeDetails = readFileSync(resolve(root, 'app/(app)/recipes/[recipeId].tsx'), 'utf8');
+
+  it('shows a small house next to the active list name', () => {
+    expect(shoppingHeader).toContain("name={{ ios: 'house', android: 'home', web: 'home' }}");
+    expect(shoppingHeader).not.toContain("ios: 'cart'");
+  });
+
+  it('gives quantity less room than category and aligns the category value right', () => {
+    const quantity = shopping.slice(shopping.indexOf('  quantityColumn: {'));
+    const category = shopping.slice(shopping.indexOf('  categoryColumn: {'));
+    const q = Number(/flex: ([\d.]+)/.exec(quantity)[1]);
+    const c = Number(/flex: ([\d.]+)/.exec(category)[1]);
+    expect(q).toBeLessThan(1);
+    expect(c).toBeGreaterThan(1);
+    expect(shopping).toContain('styles.categoryValue');
+    const value = shopping.slice(shopping.indexOf('  categoryValue: {'));
+    expect(value.slice(0, 60)).toContain("textAlign: 'right'");
+  });
+
+  it('labels the task date on the left and the assignee on the right', () => {
+    expect(localization).toContain("todoDateLabel: 'Data'");
+    expect(todo.match(/label=\{text\.todoDateLabel\}/g)).toHaveLength(2);
+    expect(picker).toContain("justifyContent: 'space-between'");
+    const accessory = picker.slice(picker.indexOf('  accessory: {'));
+    expect(accessory.slice(0, 80)).toContain("alignItems: 'flex-end'");
+  });
+
+  it('saves and cancels task edits with icons', () => {
+    const save = todo.slice(todo.indexOf('testID={`todo-save-${item.id}`}'));
+    expect(save.slice(0, 900)).toContain("ios: 'checkmark'");
+    const cancel = todo.slice(todo.indexOf('testID={`todo-cancel-edit-${item.id}`}'));
+    expect(cancel.slice(0, 700)).toContain("ios: 'xmark'");
+    expect(todo).not.toContain('{text.todoSave}</Text>');
+  });
+
+  it('lets recipe units be toggled with no "no unit" option', () => {
+    expect(recipeForm).not.toContain('unitNone');
+    expect(recipeForm).toContain('onPress={() => onChange(selected ? null : unit)}');
+    expect(localization).not.toContain('unitNone');
+  });
+
+  it('uses 16 px in the step minutes field so iOS does not zoom', () => {
+    const duration = recipeForm.slice(recipeForm.indexOf('  durationInput: {'));
+    expect(duration.slice(0, 300)).toContain('fontSize: 16');
+  });
+
+  it('shows the bottom navigation on a recipe page', () => {
+    expect(recipeDetails).toContain('section="recipes"');
+    expect(recipeDetails).toContain('nestedNav');
+    expect(bottomNav).toContain('router.dismissAll();');
+  });
+});
+
 describe('tasks layout contract', () => {
   it('splits open tasks into today (overdue included) and later', () => {
     expect(todo).toContain("type DueGroup = 'today' | 'later';");
@@ -312,7 +370,8 @@ describe('tasks layout contract', () => {
   });
 
   it('assigns with inline person icons, the current user first, nobody selected by default', () => {
-    expect(todo).toContain('{text.todoMembers}:');
+    expect(todo).toContain('{text.todoMembers}</Text>');
+    expect(localization).toContain("todoMembers: 'Wykonawca'");
     expect(todo).toContain('...members.filter((member) => member.user_id === currentUserId),');
     expect(todo).not.toContain('-all`}');
     expect(todo).not.toContain('onChange([])');

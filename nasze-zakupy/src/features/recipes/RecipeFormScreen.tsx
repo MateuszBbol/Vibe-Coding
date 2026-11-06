@@ -19,7 +19,6 @@ import { getFeatureErrorMessage, logFeatureError } from '@/features/errors';
 import { getShoppingCategory, shoppingCategories } from '@/features/shopping/categories';
 import { classifyShoppingProduct } from '@/features/shopping/productCategories';
 import { shoppingUnits } from '@/features/shopping/schemas';
-import type { ShoppingUnit } from '@/features/shopping/schemas';
 import { fetchRecipe, saveRecipe } from '@/features/recipes/data';
 import type { RecipeFormInput, RecipeFormValues } from '@/features/recipes/schemas';
 import { recipeSchema } from '@/features/recipes/schemas';
@@ -404,7 +403,6 @@ function RecipeIngredientForm({
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
   const text = strings.pl.recipes;
-  const unitChoices: (ShoppingUnit | null)[] = [null, ...shoppingUnits];
   return (
     <RecipeCard testID={testID}>
       <View style={styles.ingredientHeader}>
@@ -494,17 +492,19 @@ function RecipeIngredientForm({
         name={`items.${index}.unit`}
         render={({ field: { onChange, value } }) => (
           <View style={styles.unitOptions}>
-            {unitChoices.map((unit) => {
-              const label = unit ?? text.unitNone;
+            {/* No unit = nothing selected; tapping the selected unit clears it. */}
+            {shoppingUnits.map((unit) => {
+              const label = unit;
               const selected = value === unit;
               return (
                 <Pressable
                   key={label}
-                  accessibilityRole="radio"
+                  accessibilityRole="checkbox"
                   accessibilityState={{ checked: selected, disabled }}
-                  testID={`${testID}-unit-option-${unit ?? 'none'}`}
+                  aria-checked={selected}
+                  testID={`${testID}-unit-option-${unit}`}
                   disabled={disabled}
-                  onPress={() => onChange(unit)}
+                  onPress={() => onChange(selected ? null : unit)}
                   style={[
                     styles.unitOption,
                     {
@@ -603,7 +603,12 @@ const styles = StyleSheet.create({
   },
   category: { fontSize: 15, paddingVertical: Spacing.two },
   categorySelector: { borderWidth: 1, borderRadius: 10, paddingHorizontal: Spacing.two },
-  categoryOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, marginTop: Spacing.one },
+  categoryOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+    marginTop: Spacing.one,
+  },
   stepHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stepActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   stepDurationRow: {
@@ -619,5 +624,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: Spacing.one,
     textAlign: 'center',
+    // 16 px avoids the iOS Safari zoom on focus.
+    fontSize: 16,
   },
 });

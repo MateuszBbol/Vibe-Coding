@@ -67,7 +67,7 @@ export function ShoppingAppHeader({
             </View>
             <View style={styles.identityRow}>
               <SymbolView
-                name={{ ios: 'cart', android: 'shopping_cart', web: 'shopping_cart' }}
+                name={{ ios: 'house', android: 'home', web: 'home' }}
                 tintColor={colors.secondaryText}
                 size={14}
               />
@@ -131,13 +131,13 @@ const styles = StyleSheet.create({
   title: {
     flexShrink: 0,
     textAlign: 'center',
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: '700',
   },
   compactTitle: {
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 28,
+    lineHeight: 34,
   },
   left: {
     flexDirection: 'row',

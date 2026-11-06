@@ -189,6 +189,8 @@ export default function RecipeDetailsRoute() {
       title={recipeQuery.data?.name ?? text.title}
       testID={`recipe-details-screen-${recipeId ?? 'unknown'}`}
       onBack={returnToRecipes}
+      section="recipes"
+      nestedNav
     >
       {isLoading ? (
         <ActivityIndicator testID="recipe-details-loading" color={colors.accent} size="large" />

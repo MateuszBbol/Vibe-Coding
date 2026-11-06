@@ -14,6 +14,8 @@ type RecipeFrameProps = PropsWithChildren<{
   testID?: string;
   // Top-level section screens show the bottom navigation instead of a Back button.
   section?: AppSection;
+  // A screen inside a section that also shows the bottom navigation (with Back).
+  nestedNav?: boolean;
 }>;
 
 export function RecipeFrame({
@@ -22,6 +24,7 @@ export function RecipeFrame({
   action,
   testID,
   section,
+  nestedNav = false,
   children,
 }: RecipeFrameProps) {
   const dark = useColorScheme() === 'dark';
@@ -40,7 +43,7 @@ export function RecipeFrame({
       >
         {children}
       </ScrollView>
-      {section ? <AppBottomNav active={section} /> : null}
+      {section ? <AppBottomNav active={section} nested={nestedNav} /> : null}
     </SafeAreaView>
   );
 }

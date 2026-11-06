@@ -1013,7 +1013,7 @@ export function ShoppingHome({
                   control={control}
                   name="quantity"
                   render={({ field: { onChange, onBlur, value } }) => (
-                    <View style={styles.selectorColumn}>
+                    <View style={[styles.selectorColumn, styles.quantityColumn]}>
                       <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
                         {text.quantityLabel}
                       </Text>
@@ -1082,7 +1082,7 @@ export function ShoppingHome({
                   control={control}
                   name="category"
                   render={({ field: { onChange, value } }) => (
-                    <View style={styles.selectorColumn}>
+                    <View style={[styles.selectorColumn, styles.categoryColumn]}>
                       <Text style={[styles.selectorLabel, { color: colors.secondaryText }]}>
                         {text.categoryLabel}
                       </Text>
@@ -1098,6 +1098,7 @@ export function ShoppingHome({
                         }}
                         style={[
                           styles.selectorButton,
+                          styles.categorySelectorButton,
                           {
                             backgroundColor: colors.background,
                             borderColor: showCategoryOptions ? colors.accent : colors.border,
@@ -1105,7 +1106,11 @@ export function ShoppingHome({
                         ]}
                       >
                         <Text
-                          style={[styles.selectorValue, { color: colors.text }]}
+                          style={[
+                            styles.selectorValue,
+                            styles.categoryValue,
+                            { color: colors.text },
+                          ]}
                           numberOfLines={1}
                         >
                           {getShoppingCategory(value).emoji} {getShoppingCategory(value).label}
@@ -1570,8 +1575,14 @@ const styles = StyleSheet.create({
   },
   selectorColumn: {
     flex: 1,
-    minWidth: 95,
+    minWidth: 0,
     gap: Spacing.one,
+  },
+  quantityColumn: {
+    flex: 0.7,
+  },
+  categoryColumn: {
+    flex: 1.6,
   },
   selectorLabel: {
     fontSize: 13,
@@ -1595,6 +1606,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  categorySelectorButton: {
+    justifyContent: 'flex-end',
+  },
+  categoryValue: {
+    textAlign: 'right',
   },
   selectorChange: {
     position: 'absolute',

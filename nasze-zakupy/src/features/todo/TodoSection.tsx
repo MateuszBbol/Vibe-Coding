@@ -101,49 +101,51 @@ function TodoMemberPicker({
 
   return (
     <View testID={`${testID}-options`} style={styles.memberPicker}>
-      <Text style={[styles.memberPickerLabel, { color: colors.text }]}>{text.todoMembers}:</Text>
-      {orderedMembers.map((member) => {
-        const selected = selectedIds.includes(member.user_id);
-        const label = memberLabel(member);
-        const isMe = member.user_id === currentUserId;
-        return (
-          <Pressable
-            key={member.user_id}
-            accessibilityRole="checkbox"
-            accessibilityLabel={isMe ? `${text.todoMe} (${label})` : label}
-            accessibilityState={{ checked: selected, disabled }}
-            aria-checked={selected}
-            testID={`${testID}-member-${member.user_id}`}
-            disabled={disabled}
-            onPress={() =>
-              onChange(
-                selected
-                  ? selectedIds.filter((userId) => userId !== member.user_id)
-                  : [...selectedIds, member.user_id],
-              )
-            }
-            style={({ pressed }) => [styles.memberChip, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            {avatar(
-              selected,
-              <Text
-                style={[styles.avatarText, { color: selected ? colors.background : colors.text }]}
-              >
-                {label.charAt(0).toLocaleUpperCase('pl-PL')}
-              </Text>,
-            )}
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.memberChipLabel,
-                { color: selected ? colors.accent : colors.secondaryText },
-              ]}
+      <Text style={[styles.memberPickerLabel, { color: colors.text }]}>{text.todoMembers}</Text>
+      <View style={styles.memberChips}>
+        {orderedMembers.map((member) => {
+          const selected = selectedIds.includes(member.user_id);
+          const label = memberLabel(member);
+          const isMe = member.user_id === currentUserId;
+          return (
+            <Pressable
+              key={member.user_id}
+              accessibilityRole="checkbox"
+              accessibilityLabel={isMe ? `${text.todoMe} (${label})` : label}
+              accessibilityState={{ checked: selected, disabled }}
+              aria-checked={selected}
+              testID={`${testID}-member-${member.user_id}`}
+              disabled={disabled}
+              onPress={() =>
+                onChange(
+                  selected
+                    ? selectedIds.filter((userId) => userId !== member.user_id)
+                    : [...selectedIds, member.user_id],
+                )
+              }
+              style={({ pressed }) => [styles.memberChip, { opacity: pressed ? 0.7 : 1 }]}
             >
-              {isMe ? text.todoMe : label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              {avatar(
+                selected,
+                <Text
+                  style={[styles.avatarText, { color: selected ? colors.background : colors.text }]}
+                >
+                  {label.charAt(0).toLocaleUpperCase('pl-PL')}
+                </Text>,
+              )}
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.memberChipLabel,
+                  { color: selected ? colors.accent : colors.secondaryText },
+                ]}
+              >
+                {isMe ? text.todoMe : label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -447,6 +449,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                 onChange={setEditDueDate}
                 disabled={isPending}
                 testID={`todo-edit-due-date-${item.id}`}
+                label={text.todoDateLabel}
                 accessory={
                   <TodoMemberPicker
                     members={members}
@@ -458,7 +461,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                   />
                 }
               />
-              <View style={styles.itemActions}>
+              <View style={[styles.itemActions, styles.editActions]}>
                 <Pressable
                   accessibilityRole="button"
                   testID={`todo-save-${item.id}`}
@@ -476,20 +479,34 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                       });
                     }
                   }}
-                  style={styles.actionButton}
+                  accessibilityLabel={text.todoSave}
+                  hitSlop={6}
+                  style={[styles.editIconButton, { backgroundColor: colors.accent }]}
                 >
-                  <Text style={[styles.link, { color: colors.accent }]}>{text.todoSave}</Text>
+                  <SymbolView
+                    name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                    tintColor={colors.background}
+                    size={20}
+                  />
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   testID={`todo-cancel-edit-${item.id}`}
                   disabled={isPending}
                   onPress={() => setEditingId(null)}
-                  style={styles.actionButton}
+                  accessibilityLabel={text.todoCancel}
+                  hitSlop={6}
+                  style={[
+                    styles.editIconButton,
+                    styles.editIconButtonSecondary,
+                    { backgroundColor: colors.background, borderColor: colors.border },
+                  ]}
                 >
-                  <Text style={[styles.link, { color: colors.secondaryText }]}>
-                    {text.todoCancel}
-                  </Text>
+                  <SymbolView
+                    name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                    tintColor={colors.secondaryText}
+                    size={20}
+                  />
                 </Pressable>
               </View>
             </>
@@ -640,6 +657,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
           onChange={setNewDueDate}
           disabled={addMutation.isPending}
           testID="todo-due-date-input"
+          label={text.todoDateLabel}
           accessory={
             <TodoMemberPicker
               members={members}
@@ -804,15 +822,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   addButtonText: { fontSize: 15, fontWeight: '700' },
-  memberPicker: {
-    width: '100%',
+  memberPicker: { width: '100%', alignItems: 'flex-end', gap: Spacing.one },
+  memberPickerLabel: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  memberChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     columnGap: Spacing.two,
     rowGap: Spacing.one,
   },
-  memberPickerLabel: { fontSize: 14, fontWeight: '600', marginRight: Spacing.one },
   memberChip: { width: 48, minHeight: 48, alignItems: 'center', gap: 2 },
   avatar: {
     width: 32,
@@ -859,8 +877,16 @@ const styles = StyleSheet.create({
   dueDate: { fontSize: 12, fontWeight: '600' },
   assignmentSummary: { flexShrink: 1, fontSize: 12 },
   itemActions: { flexDirection: 'row', alignItems: 'center' },
+  editActions: { justifyContent: 'flex-end', gap: Spacing.two },
   iconButton: { width: 38, height: 42, alignItems: 'center', justifyContent: 'center' },
-  actionButton: { minHeight: 36, justifyContent: 'center' },
+  editIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editIconButtonSecondary: { borderWidth: 1 },
   completedArrow: {
     position: 'absolute',
     right: Spacing.one,

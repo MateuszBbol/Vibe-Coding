@@ -15,6 +15,8 @@ type TodoDatePickerProps = {
   // Content shown in the same row as the calendar button (e.g. the assignee picker);
   // the calendar itself still opens below at full width.
   accessory?: ReactNode;
+  // Optional caption shown above the calendar button (e.g. "Data").
+  label?: string;
 };
 
 function monthStart(date: Date): Date {
@@ -31,6 +33,7 @@ export function TodoDatePicker({
   disabled = false,
   testID,
   accessory,
+  label,
 }: TodoDatePickerProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
@@ -65,47 +68,52 @@ export function TodoDatePicker({
   return (
     <View style={styles.container}>
       <View style={styles.fieldRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={text.todoDatePickerLabel}
-          accessibilityState={{ disabled, expanded: isOpen }}
-          testID={testID}
-          disabled={disabled}
-          onPress={() => setIsOpen((open) => !open)}
-          // The deadline is optional: just a calendar icon until a date is picked.
-          style={({ pressed }) => [
-            styles.field,
-            selectedLabel ? null : styles.iconOnly,
-            {
-              backgroundColor: value ? colors.accentSoft : colors.background,
-              borderColor: isOpen || value ? colors.accent : colors.border,
-              opacity: disabled || pressed ? 0.65 : 1,
-            },
-          ]}
-        >
-          <SymbolView
-            name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
-            tintColor={colors.accent}
-            size={20}
-          />
-          {selectedLabel ? (
-            <Text numberOfLines={1} style={[styles.fieldText, { color: colors.text }]}>
-              {selectedLabel}
-            </Text>
-          ) : null}
-        </Pressable>
-        {value ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={text.todoDateClear}
-            testID={`${testID}-clear`}
-            disabled={disabled}
-            onPress={() => onChange('')}
-            style={styles.clearButton}
-          >
-            <Text style={[styles.clearText, { color: colors.secondaryText }]}>×</Text>
-          </Pressable>
-        ) : null}
+        <View style={styles.dateColumn}>
+          {label ? <Text style={[styles.caption, { color: colors.text }]}>{label}</Text> : null}
+          <View style={styles.dateControls}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={text.todoDatePickerLabel}
+              accessibilityState={{ disabled, expanded: isOpen }}
+              testID={testID}
+              disabled={disabled}
+              onPress={() => setIsOpen((open) => !open)}
+              // The deadline is optional: just a calendar icon until a date is picked.
+              style={({ pressed }) => [
+                styles.field,
+                selectedLabel ? null : styles.iconOnly,
+                {
+                  backgroundColor: value ? colors.accentSoft : colors.background,
+                  borderColor: isOpen || value ? colors.accent : colors.border,
+                  opacity: disabled || pressed ? 0.65 : 1,
+                },
+              ]}
+            >
+              <SymbolView
+                name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
+                tintColor={colors.accent}
+                size={20}
+              />
+              {selectedLabel ? (
+                <Text numberOfLines={1} style={[styles.fieldText, { color: colors.text }]}>
+                  {selectedLabel}
+                </Text>
+              ) : null}
+            </Pressable>
+            {value ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text.todoDateClear}
+                testID={`${testID}-clear`}
+                disabled={disabled}
+                onPress={() => onChange('')}
+                style={styles.clearButton}
+              >
+                <Text style={[styles.clearText, { color: colors.secondaryText }]}>×</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
         {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
       </View>
       {isOpen ? (
@@ -200,8 +208,17 @@ export function TodoDatePicker({
 
 const styles = StyleSheet.create({
   container: { width: '100%' },
-  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  accessory: { flex: 1, minWidth: 0 },
+  // Date on the left, the accessory (assignees) on the right.
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  dateColumn: { flexShrink: 1, gap: Spacing.one },
+  dateControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  caption: { fontSize: 14, fontWeight: '600' },
+  accessory: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
   field: {
     flexShrink: 1,
     height: 44,
