@@ -57,7 +57,9 @@ describe('screen layout contract', () => {
   it('keeps the section in the URL and switches home sections in place', () => {
     expect(bottomNav).toContain("todo: { pathname: '/home', params: { section: 'todo' } }");
     expect(shopping).toContain("sectionParam === 'todo' ? 'todo' : 'shopping'");
-    expect(shopping).toContain("router.setParams({ section: section === 'todo' ? 'todo' : undefined })");
+    expect(shopping).toContain(
+      "router.setParams({ section: section === 'todo' ? 'todo' : undefined })",
+    );
   });
 
   it('keeps list management, sharing and deletion off the shopping screen', () => {
@@ -98,8 +100,18 @@ describe('screen layout contract', () => {
     expect(home).toContain('household={activeHousehold}');
   });
 
-  it('keeps branding left and the compact, truncated user and active-list block on the right', () => {
-    expect(shoppingHeader).toContain("justifyContent: 'space-between'");
+  it('centres the title and keeps the truncated user and list block in the top-right corner', () => {
+    // Equal side columns around the title keep it centred on the screen.
+    expect(shoppingHeader).toContain('<View style={styles.side} />');
+    expect(shoppingHeader).toContain('<View style={[styles.side, styles.right]}>');
+    expect(shoppingHeader).toContain('flexBasis: 0');
+    expect(shoppingHeader).toContain("textAlign: 'center'");
+    expect(shoppingHeader.indexOf('<View style={styles.side} />')).toBeLessThan(
+      shoppingHeader.indexOf('{title}'),
+    );
+    expect(shoppingHeader.indexOf('{title}')).toBeLessThan(
+      shoppingHeader.indexOf('testID="profile-identity"'),
+    );
     expect(shoppingHeader).toContain("justifyContent: 'flex-end'");
     expect(shoppingHeader.indexOf('testID="profile-identity"')).toBeLessThan(
       shoppingHeader.indexOf('testID="profile-logout-button"'),
@@ -119,9 +131,8 @@ describe('screen layout contract', () => {
     expect(screenHeader).toContain('fontSize: 24');
     expect(screenHeader).toContain('fontSize: 26');
     expect(shoppingHeader).toContain('fontSize: 25');
-    expect(localization).toContain("todoTitle: 'Zadania'");
+    expect(localization).not.toContain('todoTitle:');
     expect(localization).toContain("todoTab: 'Zadania'");
-    expect(localization).toContain("todoTitle: 'Tasks'");
     expect(localization).toContain("todoTab: 'Tasks'");
   });
 
@@ -156,7 +167,9 @@ describe('screen layout contract', () => {
   });
 
   it('provides direct product edit and delete actions with compact product rows', () => {
-    expect(shopping).toContain('onPress={() => scheduleDelete([item.id], text.undoDeleted(item.name))}');
+    expect(shopping).toContain(
+      'onPress={() => scheduleDelete([item.id], text.undoDeleted(item.name))}',
+    );
     expect(shopping).toContain("ios: 'trash', android: 'delete_outline', web: 'delete_outline'");
     expect(shopping).toContain('testID={`shopping-item-edit-${item.id}`}');
     expect(shopping).toContain('accessibilityLabel={text.editItem}');

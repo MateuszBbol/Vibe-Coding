@@ -620,9 +620,6 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         !visible ? styles.hidden : null,
       ]}
     >
-      <Text accessibilityRole="header" style={[styles.heading, { color: colors.text }]}>
-        {text.todoTitle}
-      </Text>
       <TextInput
         accessibilityLabel={text.todoAdd}
         testID="todo-title-input"
@@ -812,7 +809,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   hidden: { display: 'none' },
-  heading: { fontSize: 20, fontWeight: '700' },
   input: {
     minHeight: 44,
     width: '100%',

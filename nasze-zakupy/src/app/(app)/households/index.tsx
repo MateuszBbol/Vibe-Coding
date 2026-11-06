@@ -78,22 +78,25 @@ export default function HouseholdsRoute() {
           <Text style={[styles.count, { color: colors.secondaryText }]}>
             {text.householdCount(households.length)}
           </Text>
+          {/* At the list limit neither creating nor joining is possible, so both are hidden. */}
           {hasHouseholdCapacity(households.length) ? (
-            <HouseholdButton
-              label={`+ ${text.newHousehold}`}
-              testID="household-create-button"
-              onPress={() => router.push(householdRoutes.create())}
-            />
+            <>
+              <HouseholdButton
+                label={`+ ${text.newHousehold}`}
+                testID="household-create-button"
+                onPress={() => router.push(householdRoutes.create())}
+              />
+              <HouseholdNavigationRow
+                title={text.joinWithCode}
+                testID="navigation-household-invitations"
+                onPress={() => router.push(householdRoutes.invitations())}
+              />
+            </>
           ) : (
             <HouseholdMessage testID="households-limit-message">
               {text.householdLimit}
             </HouseholdMessage>
           )}
-          <HouseholdNavigationRow
-            title={text.joinWithCode}
-            testID="navigation-household-invitations"
-            onPress={() => router.push(householdRoutes.invitations())}
-          />
         </>
       )}
     </HouseholdFrame>

@@ -36,6 +36,8 @@ export function ShoppingAppHeader({
 
   return (
     <View style={styles.container}>
+      {/* Equal-width side columns keep the title centred on the screen. */}
+      <View style={styles.side} />
       <Text
         accessibilityRole="header"
         numberOfLines={1}
@@ -43,7 +45,7 @@ export function ShoppingAppHeader({
       >
         {title}
       </Text>
-      <View style={styles.right}>
+      <View style={[styles.side, styles.right]}>
         {/* Read-only identity: lists are managed from the "Listy" section of the bottom bar. */}
         <View
           accessible
@@ -117,12 +119,17 @@ const styles = StyleSheet.create({
     minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: Spacing.two,
     marginBottom: Spacing.three,
   },
+  side: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
   title: {
     flexShrink: 0,
+    textAlign: 'center',
     fontSize: 25,
     lineHeight: 32,
     fontWeight: '700',

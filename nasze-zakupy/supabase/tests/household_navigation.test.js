@@ -76,3 +76,21 @@ describe('household navigation contract', () => {
     }
   });
 });
+
+describe('list overview at the list limit', () => {
+  const overview = readFileSync(resolve(appRoot, 'households/index.tsx'), 'utf8');
+
+  it('shows create and join-with-code only while another list can still be added', () => {
+    const capacityCheck = overview.indexOf('{hasHouseholdCapacity(households.length) ? (');
+    const limitMessage = overview.indexOf('testID="households-limit-message"');
+    expect(capacityCheck).toBeGreaterThan(-1);
+    for (const testId of [
+      'testID="household-create-button"',
+      'testID="navigation-household-invitations"',
+    ]) {
+      const position = overview.indexOf(testId);
+      expect(position).toBeGreaterThan(capacityCheck);
+      expect(position).toBeLessThan(limitMessage);
+    }
+  });
+});
