@@ -17,6 +17,8 @@ type TodoDatePickerProps = {
   accessory?: ReactNode;
   // Optional caption shown above the calendar button (e.g. "Data").
   label?: string;
+  // Centre the date and the accessory as one group (used while editing a task).
+  centered?: boolean;
 };
 
 function monthStart(date: Date): Date {
@@ -34,6 +36,7 @@ export function TodoDatePicker({
   testID,
   accessory,
   label,
+  centered = false,
 }: TodoDatePickerProps) {
   const dark = useColorScheme() === 'dark';
   const colors = Colors[dark ? 'dark' : 'light'];
@@ -58,16 +61,17 @@ export function TodoDatePicker({
   }, [displayedMonth]);
 
   const selectedLabel = value
-    ? new Intl.DateTimeFormat('pl-PL', {
+    ? // Short form ("6 lis 2026") keeps the button compact next to the assignees.
+      new Intl.DateTimeFormat('pl-PL', {
         day: 'numeric',
-        month: 'long',
+        month: 'short',
         year: 'numeric',
       }).format(parseTodoDate(value))
     : null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.fieldRow}>
+      <View style={[styles.fieldRow, centered ? styles.fieldRowCentered : null]}>
         <View style={styles.dateColumn}>
           {label ? <Text style={[styles.caption, { color: colors.text }]}>{label}</Text> : null}
           <View style={styles.dateControls}>
@@ -114,7 +118,11 @@ export function TodoDatePicker({
             ) : null}
           </View>
         </View>
-        {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
+        {accessory ? (
+          <View style={[styles.accessory, centered ? styles.accessoryCentered : null]}>
+            {accessory}
+          </View>
+        ) : null}
       </View>
       {isOpen ? (
         <View
@@ -220,6 +228,21 @@ const styles = StyleSheet.create({
   dateControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   caption: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
   accessory: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
+  // When there is not enough room, the assignee group moves to its own line instead of
+  // squeezing the person icons into a column.
+  fieldRowCentered: {
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    columnGap: Spacing.five,
+    rowGap: Spacing.two,
+  },
+  accessoryCentered: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    maxWidth: '100%',
+    alignItems: 'center',
+  },
   field: {
     flexShrink: 1,
     height: 44,

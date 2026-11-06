@@ -20,9 +20,8 @@ describe('household invitation RPC flow', () => {
     mockRpc.mockReset();
   });
 
-  it('passes a generated invitation token unchanged from creation through validation to acceptance', async () => {
-    const generatedToken = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-    mockRpc.mockResolvedValueOnce({ data: generatedToken, error: null }).mockResolvedValueOnce({
+  it('passes a generated short code from creation through validation to acceptance', async () => {
+    mockRpc.mockResolvedValueOnce({ data: 'K7M2-P9QR', error: null }).mockResolvedValueOnce({
       data: [{ household_id: 'household-id', household_name: 'Nasze Zakupy' }],
       error: null,
     });
@@ -36,7 +35,7 @@ describe('household invitation RPC flow', () => {
       target_email: 'member@example.com',
     });
     expect(mockRpc).toHaveBeenNthCalledWith(2, 'accept_household_invitation', {
-      invitation_token: generatedToken,
+      invitation_token: 'K7M2P9QR',
     });
   });
 

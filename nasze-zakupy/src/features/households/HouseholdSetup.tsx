@@ -206,7 +206,7 @@ export function HouseholdSetup({
               <TextInput
                 accessibilityLabel={text.codeLabel}
                 testID="household-join-token-input"
-                autoCapitalize="none"
+                autoCapitalize="characters"
                 autoCorrect={false}
                 editable={!isPending && !joinDisabled}
                 onBlur={onBlur}

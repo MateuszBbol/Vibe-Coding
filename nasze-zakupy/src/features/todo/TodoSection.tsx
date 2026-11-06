@@ -404,28 +404,34 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
         testID={`todo-item-${item.id}`}
         style={[styles.item, { borderBottomColor: colors.border }]}
       >
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: item.completed, disabled: isPending }}
-          aria-checked={item.completed}
-          accessibilityLabel={item.title}
-          testID={`todo-checkbox-${item.id}`}
-          disabled={isPending}
-          onPress={() => {
-            setActionError(null);
-            updateMutation.mutate({
-              item,
-              values: { completed: !item.completed },
-            });
-          }}
-          style={styles.checkbox}
-        >
-          <Text
-            style={[styles.check, { color: item.completed ? colors.accent : colors.secondaryText }]}
+        {/* While editing, the form takes the full width and is centred on screen. */}
+        {isEditing ? null : (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: item.completed, disabled: isPending }}
+            aria-checked={item.completed}
+            accessibilityLabel={item.title}
+            testID={`todo-checkbox-${item.id}`}
+            disabled={isPending}
+            onPress={() => {
+              setActionError(null);
+              updateMutation.mutate({
+                item,
+                values: { completed: !item.completed },
+              });
+            }}
+            style={styles.checkbox}
           >
-            {item.completed ? '☑' : '☐'}
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.check,
+                { color: item.completed ? colors.accent : colors.secondaryText },
+              ]}
+            >
+              {item.completed ? '☑' : '☐'}
+            </Text>
+          </Pressable>
+        )}
         <View style={styles.itemContent}>
           {isEditing ? (
             <>
@@ -450,6 +456,7 @@ export function TodoSection({ householdId, userId, visible }: TodoSectionProps) 
                 disabled={isPending}
                 testID={`todo-edit-due-date-${item.id}`}
                 label={text.todoDateLabel}
+                centered
                 accessory={
                   <TodoMemberPicker
                     members={members}
@@ -844,7 +851,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 14, fontWeight: '700' },
   memberChipLabel: { maxWidth: 48, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   error: { color: '#B42318', fontSize: 14, lineHeight: 21, marginTop: Spacing.one },
-  empty: { fontSize: 14, lineHeight: 21, paddingVertical: Spacing.three },
+  empty: { fontSize: 14, lineHeight: 21, paddingVertical: Spacing.three, textAlign: 'center' },
   message: { fontSize: 14, lineHeight: 21 },
   link: { fontSize: 14, fontWeight: '600' },
   items: { marginTop: -Spacing.one },
@@ -878,7 +885,7 @@ const styles = StyleSheet.create({
   dueDate: { fontSize: 12, fontWeight: '600' },
   assignmentSummary: { flexShrink: 1, fontSize: 12 },
   itemActions: { flexDirection: 'row', alignItems: 'center' },
-  editActions: { justifyContent: 'flex-end', gap: Spacing.two },
+  editActions: { justifyContent: 'center', gap: Spacing.three },
   iconButton: { width: 38, height: 42, alignItems: 'center', justifyContent: 'center' },
   editIconButton: {
     width: 44,

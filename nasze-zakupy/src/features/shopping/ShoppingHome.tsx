@@ -622,7 +622,7 @@ export function ShoppingHome({
                   { backgroundColor: colors.background, borderColor: colors.border },
                 ]}
               >
-                <Text style={{ color: colors.text }}>{editUnit ?? text.noUnit}</Text>
+                <Text style={{ color: colors.text }}>{editUnit ?? ''}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -643,14 +643,16 @@ export function ShoppingHome({
             </View>
             {editUnitOptionsOpen ? (
               <View style={styles.editOptions}>
-                {[null, ...shoppingUnits].map((unit) => (
+                {/* No unit = nothing selected; tapping the selected unit clears it. */}
+                {shoppingUnits.map((unit) => (
                   <Pressable
-                    key={unit ?? 'none'}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: editUnit === unit }}
-                    testID={`shopping-edit-unit-option-${unit ?? 'none'}`}
+                    key={unit}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: editUnit === unit }}
+                    aria-checked={editUnit === unit}
+                    testID={`shopping-edit-unit-option-${unit}`}
                     onPress={() => {
-                      setEditUnit(unit);
+                      setEditUnit(editUnit === unit ? null : unit);
                       setEditUnitOptionsOpen(false);
                     }}
                     style={[
@@ -661,9 +663,7 @@ export function ShoppingHome({
                       },
                     ]}
                   >
-                    <Text style={[styles.categoryOptionText, { color: colors.text }]}>
-                      {unit ?? text.noUnit}
-                    </Text>
+                    <Text style={[styles.categoryOptionText, { color: colors.text }]}>{unit}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -1069,7 +1069,7 @@ export function ShoppingHome({
                           style={[styles.selectorValue, { color: colors.text }]}
                           numberOfLines={1}
                         >
-                          {value ?? text.noUnit}
+                          {value ?? ''}
                         </Text>
                         <Text style={[styles.selectorChange, { color: colors.accent }]}>
                           {showUnitOptions ? '⌃' : '⌄'}
@@ -1131,45 +1131,20 @@ export function ShoppingHome({
                   <>
                     {showUnitOptions ? (
                       <View style={styles.unitOptions}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: value === null }}
-                          testID="shopping-unit-option-none"
-                          disabled={addMutation.isPending}
-                          onPress={() => {
-                            onChange(null);
-                            setShowUnitOptions(false);
-                          }}
-                          style={[
-                            styles.unitOption,
-                            {
-                              backgroundColor:
-                                value === null ? colors.accentSoft : colors.background,
-                              borderColor: value === null ? colors.accent : colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.unitOptionText,
-                              { color: value === null ? colors.accent : colors.text },
-                            ]}
-                          >
-                            {text.noUnit}
-                          </Text>
-                        </Pressable>
+                        {/* No unit = nothing selected; tapping the selected unit clears it. */}
                         {shoppingUnits.map((unit) => {
                           const selected = value === unit;
                           return (
                             <Pressable
                               key={unit}
-                              accessibilityRole="button"
+                              accessibilityRole="checkbox"
                               accessibilityLabel={`${text.unitLabel}: ${unit}`}
-                              accessibilityState={{ selected }}
+                              accessibilityState={{ checked: selected }}
+                              aria-checked={selected}
                               testID={`shopping-unit-option-${unit}`}
                               disabled={addMutation.isPending}
                               onPress={() => {
-                                onChange(unit);
+                                onChange(selected ? null : unit);
                                 setShowUnitOptions(false);
                               }}
                               style={[
@@ -1812,6 +1787,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     paddingVertical: Spacing.three,
+    textAlign: 'center',
   },
   loading: {
     minHeight: 90,

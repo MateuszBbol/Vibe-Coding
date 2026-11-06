@@ -378,6 +378,38 @@ describe('recipe page and list overview requests', () => {
   });
 });
 
+describe('units, empty states, task editing and recipe buttons', () => {
+  const picker = readFileSync(resolve(root, 'features/todo/TodoDatePicker.tsx'), 'utf8');
+
+  it('has no "Bez" unit: nothing selected means no unit, tapping again clears it', () => {
+    expect(shopping).not.toContain('shopping-unit-option-none');
+    expect(shopping).not.toContain('[null, ...shoppingUnits]');
+    expect(shopping).not.toContain('text.noUnit');
+    expect(localization).not.toContain('noUnit:');
+    expect(shopping).toContain('onChange(selected ? null : unit)');
+    expect(shopping).toContain('setEditUnit(editUnit === unit ? null : unit)');
+  });
+
+  it('centres the empty shopping and task messages', () => {
+    const shoppingEmpty = shopping.slice(shopping.indexOf('  empty: {'));
+    expect(shoppingEmpty.slice(0, 140)).toContain("textAlign: 'center'");
+    expect(todo).toMatch(/empty: \{[^}]*textAlign: 'center'/);
+  });
+
+  it('centres date, assignee and the check / X icons while editing a task', () => {
+    expect(todo).toContain('{isEditing ? null : (');
+    expect(todo).toMatch(/label=\{text\.todoDateLabel\}\s*centered/);
+    expect(picker).toMatch(/fieldRowCentered: \{\s*justifyContent: 'center'/);
+    expect(picker).toMatch(/fieldRowCentered: \{[^}]*flexWrap: 'wrap'/);
+    expect(todo).toContain("editActions: { justifyContent: 'center'");
+  });
+
+  it('labels the recipe form buttons without a "+"', () => {
+    expect(localization).toContain("addStep: 'Dodaj punkt'");
+    expect(localization).toContain("addIngredient: 'Dodaj składnik'");
+  });
+});
+
 describe('tasks layout contract', () => {
   it('splits open tasks into today (overdue included) and later', () => {
     expect(todo).toContain("type DueGroup = 'today' | 'later';");
