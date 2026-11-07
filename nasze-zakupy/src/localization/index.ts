@@ -48,6 +48,11 @@ export const strings = {
       recipes: 'Przepisy',
       lists: 'Grupy',
     },
+    notFound: {
+      title: 'Nie znaleziono strony',
+      description: 'Ten adres nie istnieje albo został zmieniony.',
+      goHome: 'Przejdź do strony głównej',
+    },
     household: {
       setupTitle: 'Grupa',
       setupDescription:
@@ -352,6 +357,11 @@ export const strings = {
       todo: 'Tasks',
       recipes: 'Recipes',
       lists: 'Groups',
+    },
+    notFound: {
+      title: 'Page not found',
+      description: 'This address does not exist or has changed.',
+      goHome: 'Go to the home screen',
     },
     household: {
       setupTitle: 'Group',

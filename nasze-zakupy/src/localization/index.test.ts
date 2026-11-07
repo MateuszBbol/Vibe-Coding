@@ -23,6 +23,7 @@ describe('foundation translations', () => {
   it('keeps the translation shape ready for English', () => {
     expect(strings.en.readyItems).toHaveLength(strings.pl.readyItems.length);
     expect(Object.keys(strings.en.recipes)).toEqual(Object.keys(strings.pl.recipes));
+    expect(Object.keys(strings.en.notFound)).toEqual(Object.keys(strings.pl.notFound));
   });
 
   it('calls the shared container a group (Grupa) and keeps "Lista zakupów" for products', () => {
