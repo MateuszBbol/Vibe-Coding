@@ -1,0 +1,13 @@
+# Secrets (each project also has its own .gitignore)
+.env
+.env.*
+!.env.example
+
+# Dependencies, build output, local tool state
+node_modules/
+dist/
+.expo/
+.wrangler/
+.claude/
+.vscode/
+.idea/
